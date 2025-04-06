@@ -1,4 +1,3 @@
-// lib/screens/game_menu_screen.dart
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,11 +13,11 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   String sessionId = '';
   String mapSeed = '';
   String labyrinthId = '';
-  final String backendUrl = 'https://yourbackend.com/api'; // your backend url
+
+  final String backendUrl = 'https://epsilon-poc-2.onrender.com'; // Updated backend URL
 
   Future<void> joinGameSession(int targetSessionId) async {
-    final clientId = Uuid().v4(); // unique identifier for mobile client
-
+    final clientId = Uuid().v4(); // Unique identifier for mobile client
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/$targetSessionId/join'),
       headers: {'Content-Type': 'application/json'},
@@ -26,35 +25,36 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      // Handle successful connection
       setState(() {
         isConnected = true;
-        sessionId = data['session_id'].toString();
-        mapSeed = data['map_seed'];
-        labyrinthId = data['labyrinth_id'].toString();
+        // Parse and assign other relevant data from response if needed
       });
     } else {
-      // Handle errors accordingly
+      // Handle connection error
+      setState(() {
+        isConnected = false;
+      });
+      // Optionally, display an error message to the user
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Build your widget tree here
     return Scaffold(
-      appBar: AppBar(title: Text('Game Menu')),
+      appBar: AppBar(
+        title: Text('Game Menu'),
+      ),
       body: Center(
         child: isConnected
-            ? Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text('Connected to Session: $sessionId'),
-            Text('Map Seed: $mapSeed'),
-            Text('Labyrinth ID: $labyrinthId'),
-          ],
-        )
+            ? Text('Connected to game session.')
             : ElevatedButton(
-          onPressed: () => joinGameSession(1), // example session ID
-          child: Text('Join Game'),
+          onPressed: () {
+            // Replace 'yourSessionId' with the actual session ID you want to join
+            joinGameSession(yourSessionId);
+          },
+          child: Text('Join Game Session'),
         ),
       ),
     );
