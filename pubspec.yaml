@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   flutter_markdown: ^0.6.22
   video_player: ^2.8.6
+  http: ^1.2.1             # <-- Added HTTP client
+  uuid: ^4.4.0             # <-- Added UUID generator
 
 flutter:
   uses-material-design: true

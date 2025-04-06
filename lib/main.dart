@@ -1,16 +1,23 @@
 import 'package:flutter/material.dart';
-import 'app.dart';
+import 'screens/game_menu_screen.dart';
+import 'screens/video_screen.dart'; // Use existing video_screen.dart
 
-void main() => runApp(const EpsilonApp());
-
-routes: {
-'/': (context) => IntroVideoScreen(),
-'/menu': (context) => GameMenuScreen(),
+void main() {
+  runApp(const EpsilonApp());
 }
 
-// Example video controller completion event
-controller.addListener(() {
-if (controller.value.position == controller.value.duration) {
-Navigator.of(context).pushReplacementNamed('/menu');
+class EpsilonApp extends StatelessWidget {
+  const EpsilonApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Epsilon Game',
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const VideoScreen(), // Using existing VideoScreen
+        '/menu': (context) => const GameMenuScreen(),
+      },
+    );
+  }
 }
-});
