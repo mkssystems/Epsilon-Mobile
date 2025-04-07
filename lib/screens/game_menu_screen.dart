@@ -15,7 +15,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   final TextEditingController sessionIdController = TextEditingController();
   String connectionMessage = "";
 
-  final String backendUrl = 'https://epsilon-poc-2.onrender.com'; // backend URL corrected earlier
+  final String backendUrl = 'https://epsilon-poc-2.onrender.com/api'; // backend URL corrected earlier
 
   Future<void> joinGameSession(String targetSessionId) async {
     final clientId = const Uuid().v4(); // Unique client identifier
