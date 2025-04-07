@@ -13,6 +13,8 @@ dependencies:
   video_player: ^2.8.6
   http: ^1.2.1             # <-- Added HTTP client
   uuid: ^4.4.0             # <-- Added UUID generator
+  shared_preferences: ^2.2.2
+  wakelock_plus: ^1.1.1
 
 flutter:
   uses-material-design: true
