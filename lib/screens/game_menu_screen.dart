@@ -19,6 +19,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   final String backendUrl = 'https://epsilon-poc-2.onrender.com/api';
   List<dynamic> gameSessions = [];
   bool loading = true;
+  String? currentSessionId;
 
   @override
   void initState() {
@@ -57,6 +58,14 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   }
 
   Future<void> joinGameSession(String targetSessionId) async {
+    if (currentSessionId != null && currentSessionId != targetSessionId) {
+      setState(() {
+        connectionMessage =
+        "You are already connected to another session: $currentSessionId. Please leave it first.";
+      });
+      return;
+    }
+
     final clientId = await getOrCreateClientId();
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/$targetSessionId/join'),
@@ -68,6 +77,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       final responseData = jsonDecode(response.body);
       setState(() {
         isConnected = true;
+        currentSessionId = responseData['session_id'];
         connectionMessage =
         "Successfully connected! Session ID: ${responseData['session_id']}";
       });
@@ -82,7 +92,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   }
 
   Future<void> createGameSession() async {
-    int? mapSize = 5; // default value
+    int? mapSize = 5;
     final controller = TextEditingController(text: '5');
 
     await showDialog(
@@ -112,7 +122,8 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
 
     if (mapSize == null || mapSize! < 4 || mapSize! > 10) {
       setState(() {
-        connectionMessage = "Invalid map size. Please enter a value between 4 and 10.";
+        connectionMessage =
+        "Invalid map size. Please enter a value between 4 and 10.";
       });
       return;
     }
@@ -124,13 +135,43 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
 
     if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
       setState(() {
-        connectionMessage = "Game session created successfully!";
+        connectionMessage =
+        "Game session created successfully! Session ID: ${responseData['session_id']}";
       });
       fetchGameSessions();
     } else {
       setState(() {
         connectionMessage = "Failed to create session: ${response.body}";
+      });
+    }
+  }
+
+  Future<void> leaveGameSession() async {
+    if (currentSessionId == null) {
+      setState(() {
+        connectionMessage = "You are not connected to any session.";
+      });
+      return;
+    }
+
+    final clientId = await getOrCreateClientId();
+    final response = await http.post(
+      Uri.parse('$backendUrl/game_sessions/leave'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'client_id': clientId}),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        currentSessionId = null;
+        isConnected = false;
+        connectionMessage = "Successfully left the game session.";
+      });
+    } else {
+      setState(() {
+        connectionMessage = "Failed to leave session: ${response.body}";
       });
     }
   }
@@ -147,6 +188,8 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
             Text("Session ID: ${details['session_id']}"),
             Text("Map Seed: ${details['map_seed']}"),
             Text("Labyrinth ID: ${details['labyrinth_id']}"),
+            Text("Size: ${details['size']}"),
+            Text("Start: (${details['start_x']}, ${details['start_y']})"),
           ],
         ),
         actions: [
@@ -162,53 +205,43 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Game Menu'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: fetchGameSessions,
-          ),
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: createGameSession,
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Game Menu')),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
+          ElevatedButton(
+            onPressed: createGameSession,
+            child: const Text('Create Game Session'),
+          ),
+          ElevatedButton(
+            onPressed: fetchGameSessions,
+            child: const Text('Refresh Sessions'),
+          ),
+          if (currentSessionId != null)
+            ElevatedButton(
+              onPressed: leaveGameSession,
+              child: const Text('Leave Game Session'),
+            ),
           Expanded(
-            child: gameSessions.isEmpty
-                ? const Center(child: Text('No available game sessions.'))
-                : ListView.builder(
+            child: ListView.builder(
               itemCount: gameSessions.length,
               itemBuilder: (context, index) {
                 final session = gameSessions[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: ListTile(
-                    title: Text(session['name'] ?? session['id'].toString()),
-                    trailing: ElevatedButton(
-                      onPressed: () => joinGameSession(session['id'].toString()),
-                      child: const Text('Join'),
-                    ),
+                return ListTile(
+                  title: Text('Session ${session['id']}'),
+                  subtitle: Text('Size: ${session['size']}'),
+                  trailing: ElevatedButton(
+                    onPressed: () => joinGameSession(session['id']),
+                    child: const Text('Join'),
                   ),
                 );
               },
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              connectionMessage,
-              style: TextStyle(
-                color: connectionMessage.toLowerCase().contains('fail')
-                    ? Colors.red
-                    : Colors.green,
-              ),
-            ),
+            padding: const EdgeInsets.all(8.0),
+            child: Text(connectionMessage),
           ),
         ],
       ),
