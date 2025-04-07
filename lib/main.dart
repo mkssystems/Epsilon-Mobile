@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'screens/game_menu_screen.dart';
-import 'screens/video_screen.dart';
 
 void main() {
   runApp(const EpsilonApp());
@@ -15,8 +14,7 @@ class EpsilonApp extends StatelessWidget {
       title: 'Epsilon Game',
       initialRoute: '/',
       routes: {
-        '/': (context) => const VideoScreen(),
-        '/menu': (context) => GameMenuScreen(), // <-- removed const here
+        '/': (context) => GameMenuScreen(), // directly load GameMenuScreen
       },
     );
   }
