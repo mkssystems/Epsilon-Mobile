@@ -1,53 +1,51 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
-import 'intro_screen.dart';
+import 'package:epsilon_mobile/screens/game_menu_screen.dart';
 
 class VideoScreen extends StatefulWidget {
   const VideoScreen({super.key});
 
   @override
-  State<VideoScreen> createState() => _VideoScreenState();
+  _VideoScreenState createState() => _VideoScreenState();
 }
 
 class _VideoScreenState extends State<VideoScreen> {
-  late VideoPlayerController _controller;
+  late VideoPlayerController controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = VideoPlayerController.asset('assets/videos/epsilon_intro.mp4')
+    controller = VideoPlayerController.asset('assets/videos/epsilon_intro.mp4')
       ..initialize().then((_) {
         setState(() {});
-        _controller.play();
+        controller.play();
       });
 
-    _controller.addListener(() {
-      if (!_controller.value.isPlaying &&
-          _controller.value.position == _controller.value.duration) {
+    controller.addListener(() {
+      if (controller.value.position == controller.value.duration) {
         Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const IntroScreen()));
+          context,
+          MaterialPageRoute(builder: (_) => GameMenuScreen()),
+        );
       }
     });
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: _controller.value.isInitialized
-            ? AspectRatio(
-                aspectRatio: _controller.value.aspectRatio,
-                child: VideoPlayer(_controller),
-              )
-            : const CircularProgressIndicator(),
-      ),
+      body: controller.value.isInitialized
+          ? AspectRatio(
+        aspectRatio: controller.value.aspectRatio,
+        child: VideoPlayer(controller),
+      )
+          : const Center(child: CircularProgressIndicator()),
     );
   }
 }
