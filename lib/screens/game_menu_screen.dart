@@ -215,7 +215,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Session ID row with copy button. Using Expanded to avoid overflow.
               Row(
                 children: [
                   Expanded(
@@ -234,7 +233,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 ],
               ),
               const Divider(),
-              // Show other session information, excluding the 'id' key
               ...session.entries
                   .where((entry) => entry.key != 'id')
                   .map((entry) => Text("${entry.key}: ${entry.value}"))
@@ -252,7 +250,18 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                   child: const Text('Leave'),
                 ),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pop(context); // Close dialog first
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GameLobbyScreen(
+                          sessionId: session['id'],
+                          clientId: clientId,
+                        ),
+                      ),
+                    );
+                  },
                   child: const Text('Enter Game'),
                 ),
               ],
@@ -268,6 +277,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       ),
     );
   }
+
 
   Future<void> createGameSession() async {
     final response = await http.post(
