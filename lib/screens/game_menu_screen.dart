@@ -13,9 +13,6 @@ class GameMenuScreen extends StatefulWidget {
 }
 
 class _GameMenuScreenState extends State<GameMenuScreen> {
-  bool isConnected = false;
-  String connectionMessage = "";
-
   final String backendUrl = 'https://epsilon-poc-2.onrender.com/api';
   List<dynamic> gameSessions = [];
   bool loading = true;
@@ -24,7 +21,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   @override
   void initState() {
     super.initState();
-    WakelockPlus.enable(); // Keep screen awake
+    WakelockPlus.enable();
     fetchGameSessions();
   }
 
@@ -39,10 +36,8 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   }
 
   Future<void> fetchGameSessions() async {
-    setState(() {
-      loading = true;
-      connectionMessage = "";
-    });
+    setState(() => loading = true);
+
     final response = await http.get(Uri.parse('$backendUrl/game_sessions'));
     if (response.statusCode == 200) {
       setState(() {
@@ -50,112 +45,39 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
         loading = false;
       });
     } else {
-      setState(() {
-        loading = false;
-        connectionMessage = "Failed to load sessions";
-      });
+      setState(() => loading = false);
+      showMessage("Failed to load sessions");
     }
   }
 
-  Future<void> joinGameSession(String targetSessionId) async {
-    if (currentSessionId != null && currentSessionId != targetSessionId) {
-      setState(() {
-        connectionMessage =
-        "You are already connected to another session: $currentSessionId. Please leave it first.";
-      });
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> joinGameSession(String sessionId) async {
+    if (currentSessionId != null) {
+      showMessage("Already connected to session: $currentSessionId");
       return;
     }
 
     final clientId = await getOrCreateClientId();
     final response = await http.post(
-      Uri.parse('$backendUrl/game_sessions/$targetSessionId/join'),
+      Uri.parse('$backendUrl/game_sessions/$sessionId/join'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'client_id': clientId}),
     );
 
     if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      setState(() {
-        isConnected = true;
-        currentSessionId = responseData['session_id'];
-        connectionMessage =
-        "Successfully connected! Session ID: ${responseData['session_id']}";
-      });
-
-      showSessionDetails(responseData);
+      setState(() => currentSessionId = sessionId);
+      showMessage("Successfully connected to session: $sessionId");
     } else {
-      setState(() {
-        isConnected = false;
-        connectionMessage = "Failed to connect: ${response.body}";
-      });
-    }
-  }
-
-  Future<void> createGameSession() async {
-    int? mapSize = 5;
-    final controller = TextEditingController(text: '5');
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Create Game Session"),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: "Enter Map Size (4-10)"),
-          onChanged: (value) {
-            mapSize = int.tryParse(value);
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Create"),
-          ),
-        ],
-      ),
-    );
-
-    if (mapSize == null || mapSize! < 4 || mapSize! > 10) {
-      setState(() {
-        connectionMessage =
-        "Invalid map size. Please enter a value between 4 and 10.";
-      });
-      return;
-    }
-
-    final response = await http.post(
-      Uri.parse('$backendUrl/game_sessions/create'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'size': mapSize}),
-    );
-
-    if (response.statusCode == 200) {
-      final responseData = jsonDecode(response.body);
-      setState(() {
-        connectionMessage =
-        "Game session created successfully! Session ID: ${responseData['session_id']}";
-      });
-      fetchGameSessions();
-    } else {
-      setState(() {
-        connectionMessage = "Failed to create session: ${response.body}";
-      });
+      showMessage("Failed to connect: ${response.body}");
     }
   }
 
   Future<void> leaveGameSession() async {
-    if (currentSessionId == null) {
-      setState(() {
-        connectionMessage = "You are not connected to any session.";
-      });
-      return;
-    }
-
     final clientId = await getOrCreateClientId();
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/leave'),
@@ -164,19 +86,14 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
 
     if (response.statusCode == 200) {
-      setState(() {
-        currentSessionId = null;
-        isConnected = false;
-        connectionMessage = "Successfully left the game session.";
-      });
+      setState(() => currentSessionId = null);
+      showMessage("Successfully left session.");
     } else {
-      setState(() {
-        connectionMessage = "Failed to leave session: ${response.body}";
-      });
+      showMessage("Failed to leave session: ${response.body}");
     }
   }
 
-  void showSessionDetails(Map<String, dynamic> details) {
+  void showSessionDetails(dynamic session) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -185,18 +102,28 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Session ID: ${details['session_id']}"),
-            Text("Map Seed: ${details['map_seed']}"),
-            Text("Labyrinth ID: ${details['labyrinth_id']}"),
-            Text("Size: ${details['size']}"),
-            Text("Start: (${details['start_x']}, ${details['start_y']})"),
+            ...session.entries.map<Widget>((entry) => Text("${entry.key}: ${entry.value}")),
+            const SizedBox(height: 20),
+            if (currentSessionId == null)
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  joinGameSession(session['id']);
+                },
+                child: const Text('Join'),
+              ),
+            if (currentSessionId == session['id'])
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  leaveGameSession();
+                },
+                child: const Text('Leave'),
+              ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
         ],
       ),
     );
@@ -208,43 +135,39 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       appBar: AppBar(title: const Text('Game Menu')),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          ElevatedButton(
-            onPressed: createGameSession,
-            child: const Text('Create Game Session'),
-          ),
-          ElevatedButton(
-            onPressed: fetchGameSessions,
-            child: const Text('Refresh Sessions'),
-          ),
-          if (currentSessionId != null)
-            ElevatedButton(
-              onPressed: leaveGameSession,
-              child: const Text('Leave Game Session'),
+          : Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Card(
+              child: ListTile(
+                title: const Text("Session Actions"),
+                subtitle: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    ElevatedButton(onPressed: createGameSession, child: const Text('Create')),
+                    ElevatedButton(onPressed: fetchGameSessions, child: const Text('Refresh')),
+                  ],
+                ),
+              ),
             ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: gameSessions.length,
-              itemBuilder: (context, index) {
-                final session = gameSessions[index];
-                return ListTile(
-                  title: Text('Session ${session['id']}'),
-                  subtitle: Text('Size: ${session['size']}'),
-                  trailing: ElevatedButton(
-                    onPressed: () => joinGameSession(session['id']),
-                    child: const Text('Join'),
+            const SizedBox(height: 10),
+            Expanded(
+              child: ListView(
+                children: gameSessions.map((session) => Card(
+                  color: currentSessionId == session['id'] ? Colors.green[100] : null,
+                  child: ListTile(
+                    title: Text('Session ${session['id']}'),
+                    onTap: () => showSessionDetails(session),
                   ),
-                );
-              },
+                )).toList(),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Text(connectionMessage),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+  Future<void> createGameSession() async {}
 }
