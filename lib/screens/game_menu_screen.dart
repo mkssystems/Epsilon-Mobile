@@ -172,7 +172,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
         ],
       ),
     );
-  }
+  }     //.
 
   Future<void> createGameSession() async {}
 }
