@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import 'package:flutter/services.dart'; // For Clipboard usage
 import '../utils/app_guide.dart';
 
 class GameMenuScreen extends StatefulWidget {
@@ -46,7 +47,8 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   }
 
   Future<void> checkClientSessionState() async {
-    final response = await http.get(Uri.parse('$backendUrl/game_sessions/client_state/$clientId'));
+    final response =
+    await http.get(Uri.parse('$backendUrl/game_sessions/client_state/$clientId'));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
@@ -170,9 +172,13 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     ElevatedButton(
-                        onPressed: createGameSession, child: const Text('Create')),
+                      onPressed: createGameSession,
+                      child: const Text('Create'),
+                    ),
                     ElevatedButton(
-                        onPressed: fetchGameSessions, child: const Text('Refresh')),
+                      onPressed: fetchGameSessions,
+                      child: const Text('Refresh'),
+                    ),
                   ],
                 ),
               ),
@@ -181,15 +187,17 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
             Expanded(
               child: ListView(
                 children: gameSessions
-                    .map((session) => Card(
-                  color: currentSessionId == session['id']
-                      ? Colors.green[100]
-                      : null,
-                  child: ListTile(
-                    title: Text('Session ${session['id']}'),
-                    onTap: () => showSessionDetails(session),
+                    .map(
+                      (session) => Card(
+                    color: currentSessionId == session['id']
+                        ? Colors.green[100]
+                        : null,
+                    child: ListTile(
+                      title: Text('Session ${session['id']}'),
+                      onTap: () => showSessionDetails(session),
+                    ),
                   ),
-                ))
+                )
                     .toList(),
               ),
             ),
@@ -204,28 +212,59 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Session Details"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ...session.entries
-                .map((entry) => Text("${entry.key}: ${entry.value}")),
-            const SizedBox(height: 20),
-            if (currentSessionId == null)
-              ElevatedButton(
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Session ID row with copy button. Using Expanded to avoid overflow.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Session ID: ${session['id']}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.copy),
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: session['id']));
+                      showMessage("Session ID copied to clipboard.");
+                    },
+                  ),
+                ],
+              ),
+              const Divider(),
+              // Show other session information, excluding the 'id' key
+              ...session.entries
+                  .where((entry) => entry.key != 'id')
+                  .map((entry) => Text("${entry.key}: ${entry.value}"))
+                  .toList(),
+              const SizedBox(height: 20),
+              // Action buttons
+              if (currentSessionId == null)
+                ElevatedButton(
                   onPressed: () => joinGameSession(session['id']),
-                  child: const Text('Join')),
-            if (currentSessionId == session['id']) ...[
-              ElevatedButton(
-                  onPressed: leaveGameSession, child: const Text('Leave')),
-              ElevatedButton(onPressed: () {}, child: const Text('Enter Game')),
+                  child: const Text('Join'),
+                ),
+              if (currentSessionId == session['id']) ...[
+                ElevatedButton(
+                  onPressed: leaveGameSession,
+                  child: const Text('Leave'),
+                ),
+                ElevatedButton(
+                  onPressed: () {},
+                  child: const Text('Enter Game'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close")),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
         ],
       ),
     );
@@ -235,7 +274,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/create'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'size': 5}),  // Default size set to 5
+      body: jsonEncode({'size': 5}), // Default size is 5
     );
 
     if (response.statusCode == 200) {

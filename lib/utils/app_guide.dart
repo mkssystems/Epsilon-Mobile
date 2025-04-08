@@ -1,7 +1,7 @@
 // lib/utils/app_guide.dart
 
 const String gameMenuGuide = '''
-Welcome to the Game Menu App!
+Welcome to the Game Menu App!!!
 
 This guide will help you quickly understand how to navigate and use the main features of the application:
 
