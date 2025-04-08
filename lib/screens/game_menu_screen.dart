@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
+import '../utils/app_guide.dart';
 
 class GameMenuScreen extends StatefulWidget {
   const GameMenuScreen({super.key});
@@ -23,8 +24,10 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   void initState() {
     super.initState();
     WakelockPlus.enable();
-    initializeClientId();
-    fetchGameSessions();
+    initializeClientId().then((_) {
+      checkClientSessionState();
+      fetchGameSessions();
+    });
   }
 
   Future<void> initializeClientId() async {
@@ -40,6 +43,24 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       await prefs.setString('client_id', storedClientId);
     }
     return storedClientId;
+  }
+
+  Future<void> checkClientSessionState() async {
+    final response = await http.get(Uri.parse('$backendUrl/game_sessions/client_state/$clientId'));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['connected_session'] != null) {
+        setState(() {
+          currentSessionId = data['connected_session'];
+        });
+        showMessage("Restored session: ${data['connected_session']}");
+      } else {
+        setState(() => currentSessionId = null);
+      }
+    } else {
+      showMessage("Failed to check session state");
+    }
   }
 
   Future<void> fetchGameSessions() async {
@@ -98,11 +119,35 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     }
   }
 
+  void showGuideDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("App Guide"),
+        content: SingleChildScrollView(
+          child: Text(gameMenuGuide),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Game Menu'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.lightbulb_outline),
+            onPressed: showGuideDialog,
+          ),
+        ],
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
@@ -124,8 +169,10 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 subtitle: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    ElevatedButton(onPressed: createGameSession, child: const Text('Create')),
-                    ElevatedButton(onPressed: fetchGameSessions, child: const Text('Refresh')),
+                    ElevatedButton(
+                        onPressed: createGameSession, child: const Text('Create')),
+                    ElevatedButton(
+                        onPressed: fetchGameSessions, child: const Text('Refresh')),
                   ],
                 ),
               ),
@@ -133,13 +180,17 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
             const SizedBox(height: 10),
             Expanded(
               child: ListView(
-                children: gameSessions.map((session) => Card(
-                  color: currentSessionId == session['id'] ? Colors.green[100] : null,
+                children: gameSessions
+                    .map((session) => Card(
+                  color: currentSessionId == session['id']
+                      ? Colors.green[100]
+                      : null,
                   child: ListTile(
                     title: Text('Session ${session['id']}'),
                     onTap: () => showSessionDetails(session),
                   ),
-                )).toList(),
+                ))
+                    .toList(),
               ),
             ),
           ],
@@ -157,22 +208,42 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ...session.entries.map((entry) => Text("${entry.key}: ${entry.value}")),
+            ...session.entries
+                .map((entry) => Text("${entry.key}: ${entry.value}")),
             const SizedBox(height: 20),
             if (currentSessionId == null)
-              ElevatedButton(onPressed: () => joinGameSession(session['id']), child: const Text('Join')),
+              ElevatedButton(
+                  onPressed: () => joinGameSession(session['id']),
+                  child: const Text('Join')),
             if (currentSessionId == session['id']) ...[
-              ElevatedButton(onPressed: leaveGameSession, child: const Text('Leave')),
+              ElevatedButton(
+                  onPressed: leaveGameSession, child: const Text('Leave')),
               ElevatedButton(onPressed: () {}, child: const Text('Enter Game')),
             ],
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close")),
         ],
       ),
     );
-  }     //.
+  }
 
-  Future<void> createGameSession() async {}
+  Future<void> createGameSession() async {
+    final response = await http.post(
+      Uri.parse('$backendUrl/game_sessions/create'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'size': 5}),  // Default size set to 5
+    );
+
+    if (response.statusCode == 200) {
+      final sessionData = jsonDecode(response.body);
+      showMessage("Session created: ${sessionData['session_id']}");
+      await fetchGameSessions();
+    } else {
+      showMessage("Failed to create session: ${response.body}");
+    }
+  }
 }
