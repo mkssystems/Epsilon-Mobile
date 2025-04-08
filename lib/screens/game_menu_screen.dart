@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:flutter/services.dart'; // For Clipboard usage
 import '../utils/app_guide.dart';
+import 'game_lobby_screen.dart'; // <-- Newly added import
 
 class GameMenuScreen extends StatefulWidget {
   const GameMenuScreen({super.key});
@@ -189,9 +190,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 children: gameSessions
                     .map(
                       (session) => Card(
-                    color: currentSessionId == session['id']
-                        ? Colors.green[100]
-                        : null,
+                    color: currentSessionId == session['id'] ? Colors.green[100] : null,
                     child: ListTile(
                       title: Text('Session ${session['id']}'),
                       onTap: () => showSessionDetails(session),

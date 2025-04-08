@@ -11,10 +11,11 @@ dependencies:
     sdk: flutter
   flutter_markdown: ^0.6.22
   video_player: ^2.8.6
-  http: ^1.2.1             # <-- Added HTTP client
-  uuid: ^4.4.0             # <-- Added UUID generator
+  http: ^1.2.1             # <-- Existing HTTP client
+  uuid: ^4.4.0             # <-- Existing UUID generator
   shared_preferences: ^2.2.2
   wakelock_plus: ^1.1.1
+  web_socket_channel: ^2.4.5  # <-- NEW: WebSocket client for real-time communication
 
 flutter:
   uses-material-design: true
