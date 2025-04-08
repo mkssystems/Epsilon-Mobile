@@ -17,22 +17,29 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   List<dynamic> gameSessions = [];
   bool loading = true;
   String? currentSessionId;
+  String clientId = "";
 
   @override
   void initState() {
     super.initState();
     WakelockPlus.enable();
+    initializeClientId();
     fetchGameSessions();
+  }
+
+  Future<void> initializeClientId() async {
+    clientId = await getOrCreateClientId();
+    setState(() {});
   }
 
   Future<String> getOrCreateClientId() async {
     final prefs = await SharedPreferences.getInstance();
-    String? clientId = prefs.getString('client_id');
-    if (clientId == null) {
-      clientId = const Uuid().v4();
-      await prefs.setString('client_id', clientId);
+    String? storedClientId = prefs.getString('client_id');
+    if (storedClientId == null) {
+      storedClientId = const Uuid().v4();
+      await prefs.setString('client_id', storedClientId);
     }
-    return clientId;
+    return storedClientId;
   }
 
   Future<void> fetchGameSessions() async {
@@ -62,7 +69,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       return;
     }
 
-    final clientId = await getOrCreateClientId();
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/$sessionId/join'),
       headers: {'Content-Type': 'application/json'},
@@ -78,7 +84,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
   }
 
   Future<void> leaveGameSession() async {
-    final clientId = await getOrCreateClientId();
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/leave'),
       headers: {'Content-Type': 'application/json'},
@@ -93,46 +98,12 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     }
   }
 
-  void showSessionDetails(dynamic session) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Session Details"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ...session.entries.map<Widget>((entry) => Text("${entry.key}: ${entry.value}")),
-            const SizedBox(height: 20),
-            if (currentSessionId == null)
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  joinGameSession(session['id']);
-                },
-                child: const Text('Join'),
-              ),
-            if (currentSessionId == session['id'])
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  leaveGameSession();
-                },
-                child: const Text('Leave'),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Menu')),
+      appBar: AppBar(
+        title: const Text('Game Menu'),
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
@@ -140,6 +111,14 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
         child: Column(
           children: [
             Card(
+              color: Colors.grey[200],
+              child: ListTile(
+                title: Text('Client ID: $clientId'),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              color: Colors.grey[300],
               child: ListTile(
                 title: const Text("Session Actions"),
                 subtitle: Row(
@@ -165,6 +144,32 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void showSessionDetails(dynamic session) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Session Details"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...session.entries.map((entry) => Text("${entry.key}: ${entry.value}")),
+            const SizedBox(height: 20),
+            if (currentSessionId == null)
+              ElevatedButton(onPressed: () => joinGameSession(session['id']), child: const Text('Join')),
+            if (currentSessionId == session['id']) ...[
+              ElevatedButton(onPressed: leaveGameSession, child: const Text('Leave')),
+              ElevatedButton(onPressed: () {}, child: const Text('Enter Game')),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Close")),
+        ],
       ),
     );
   }
