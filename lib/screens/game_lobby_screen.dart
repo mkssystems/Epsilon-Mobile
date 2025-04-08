@@ -87,19 +87,31 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
         'ready': !myReadyStatus,
       }),
     );
-    // Updates come automatically via WebSocket
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Game Lobby (${widget.sessionId})'),
+        title: const Text('Game Lobby'),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
         children: [
+          Container(
+            width: double.infinity,
+            color: Colors.grey[300],
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Session ID: ${widget.sessionId}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               itemCount: players.length,
@@ -113,9 +125,10 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                   title: Text(
                     'Client ID: ${player['client_id']}',
                     style: TextStyle(
-                        fontWeight: player['client_id'] == widget.clientId
-                            ? FontWeight.bold
-                            : FontWeight.normal),
+                      fontWeight: player['client_id'] == widget.clientId
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                   ),
                 );
               },
@@ -127,12 +140,16 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
             child: Column(
               children: [
                 ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    myReadyStatus ? Colors.red : Colors.green,
+                  ),
                   onPressed: toggleMyReadiness,
                   child: Text(myReadyStatus ? 'Not Ready' : 'I am Ready'),
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
-                  onPressed: allReady ? () {} : null, // Disabled until all ready
+                  onPressed: allReady ? () {} : null,
                   child: const Text('Start Game'),
                 ),
               ],

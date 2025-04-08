@@ -206,7 +206,11 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
   }
 
-  void showSessionDetails(dynamic session) {
+  void showSessionDetails(dynamic session) async {
+    await checkClientSessionState();  // Re-check client state clearly each time dialog is opened
+
+    if (!mounted) return; // Safety check
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -238,8 +242,9 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                   .map((entry) => Text("${entry.key}: ${entry.value}"))
                   .toList(),
               const SizedBox(height: 20),
-              // Action buttons
-              if (currentSessionId == null)
+
+              // Action buttons clearly based on refreshed state
+              if (currentSessionId == null || currentSessionId != session['id'])
                 ElevatedButton(
                   onPressed: () => joinGameSession(session['id']),
                   child: const Text('Join'),
@@ -277,6 +282,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       ),
     );
   }
+
 
 
   Future<void> createGameSession() async {
