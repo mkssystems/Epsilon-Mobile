@@ -25,6 +25,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   bool myReadyStatus = false;
   bool loading = true;
 
+  void showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -50,13 +56,14 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
         allReady = data['all_ready'];
         myReadyStatus = players
             .firstWhere(
-              (player) => player['client_id'] == widget.clientId,
+              (player) => player['client_id'].toString() == widget.clientId.toString(),
           orElse: () => {'ready': false},
         )['ready'];
         loading = false;
       });
     });
   }
+
 
   Future<void> fetchCurrentStatus() async {
     final response = await http.get(
@@ -70,7 +77,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
         allReady = data['all_ready'];
         myReadyStatus = players
             .firstWhere(
-              (player) => player['client_id'] == widget.clientId,
+              (player) => player['client_id'].toString() == widget.clientId.toString(),
           orElse: () => {'ready': false},
         )['ready'];
         loading = false;
@@ -78,16 +85,35 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
     }
   }
 
+
   Future<void> toggleMyReadiness() async {
-    await http.post(
+    final bool newReadyStatus = !myReadyStatus;
+
+    final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/toggle_readiness'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'client_id': widget.clientId,
-        'ready': !myReadyStatus,
+        'ready': newReadyStatus,
       }),
     );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        players = data['players'];
+        allReady = data['all_ready'];
+        myReadyStatus = players
+            .firstWhere(
+              (player) => player['client_id'].toString() == widget.clientId.toString(),
+          orElse: () => {'ready': false},
+        )['ready'];
+      });
+    } else {
+      showMessage('Failed to update readiness.');
+    }
   }
+
 
   @override
   Widget build(BuildContext context) {
