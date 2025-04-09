@@ -16,9 +16,12 @@ dependencies:
   shared_preferences: ^2.2.2
   wakelock_plus: ^1.1.1
   web_socket_channel: ^2.4.5  # <-- NEW: WebSocket client for real-time communication
+  intl: ^0.17.0
 
 flutter:
   uses-material-design: true
   assets:
-    - assets/backstories/epsilon267_intro.md
-    - assets/videos/epsilon_intro.mp4
+    - assets/backstories/
+    - assets/videos/
+    - assets/fpv_graphics/
+    - assets/fpv_stories/

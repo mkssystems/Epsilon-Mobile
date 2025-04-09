@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'game.dart'; // Add this import at the top
 
 class GameLobbyScreen extends StatefulWidget {
   final String sessionId;
@@ -114,6 +115,38 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
     }
   }
 
+  void showStartGameDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Start Game"),
+          content: const Text("Are you sure you want to start the game now?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Not yet..."),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const Game(),
+                  ),
+                );
+              },
+              child: const Text("Yes, let's go!"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +208,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 ),
                 const SizedBox(height: 10),
                 ElevatedButton(
-                  onPressed: allReady ? () {} : null,
+                  onPressed: allReady ? showStartGameDialog : null,
                   child: const Text('Start Game'),
                 ),
               ],
