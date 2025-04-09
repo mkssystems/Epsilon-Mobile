@@ -37,11 +37,26 @@ class _GameState extends State<Game> {
               flex: 5,
               child: Container(
                 color: Colors.blueAccent,
-                child: const Center(
-                  child: Text(
-                    "Status Bar",
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: const [
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        "Morgan Ashford",
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Text(
+                        "Turn: 1",
+                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -88,6 +103,7 @@ class _GameState extends State<Game> {
                       child: Text(
                         storyText,
                         style: const TextStyle(fontSize: 16, height: 1.4),
+                        textAlign: TextAlign.justify,
                       ),
                     ),
                   ),
