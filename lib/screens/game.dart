@@ -11,11 +11,17 @@ class Game extends StatefulWidget {
 class _GameState extends State<Game> {
   String storyText = "";
   PageController functionalPageController = PageController(initialPage: 1);
+  int currentPage = 1;
 
   @override
   void initState() {
     super.initState();
     loadStory();
+    functionalPageController.addListener(() {
+      setState(() {
+        currentPage = functionalPageController.page!.round();
+      });
+    });
   }
 
   Future<void> loadStory() async {
@@ -79,7 +85,19 @@ class _GameState extends State<Game> {
                   Container(color: Colors.grey[100], child: const Center(child: Text("Graphic Screen Left"))),
                   Container(
                     color: Colors.black,
-                    child: Image.asset('assets/fpv_graphics/FPV_tile_rendering.png', fit: BoxFit.contain),
+                    child: Center(
+                      child: SizedBox(
+                        width: 400,
+                        height: 300,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Image.asset('assets/fpv_graphics/FPV_tile_rendering.png', fit: BoxFit.fill),
+                            // Additional overlay images here
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                   Container(color: Colors.grey[200], child: const Center(child: Text("Graphic Screen Right"))),
                 ],
@@ -94,12 +112,12 @@ class _GameState extends State<Game> {
                 children: [
                   Container(color: Colors.grey[300], child: const Center(child: Text("Functional Screen Left"))),
                   Container(
-                    color: Colors.grey[400],
+                    color: Colors.grey[300],
                     padding: const EdgeInsets.all(16.0),
                     child: SingleChildScrollView(
                       child: Text(
                         storyText,
-                        style: const TextStyle(fontSize: 16, height: 1.4),
+                        style: const TextStyle(fontSize: 16, height: 1.4, color: Colors.black),
                         textAlign: TextAlign.justify,
                       ),
                     ),
@@ -122,15 +140,17 @@ class _GameState extends State<Game> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    actionButton("MOVE", Colors.green, 2),
+                    actionButton("DESC", Colors.grey[300]!, 1, Colors.black),
                     verticalDivider(),
-                    actionButton("FIGHT", Colors.red, 3),
+                    actionButton("MOVE", Colors.green, 2, Colors.white),
                     verticalDivider(),
-                    actionButton("STAY", Colors.blue, 4),
+                    actionButton("FIGHT", Colors.red, 3, Colors.white),
                     verticalDivider(),
-                    actionButton("EXPL", Colors.purple, 5),
+                    actionButton("STAY", Colors.blue, 4, Colors.white),
                     verticalDivider(),
-                    actionButton("SPEC", Colors.teal, 6),
+                    actionButton("EXPL", Colors.purple, 5, Colors.white),
+                    verticalDivider(),
+                    actionButton("SPEC", Colors.teal, 6, Colors.white),
                   ],
                 ),
               ),
@@ -152,13 +172,13 @@ class _GameState extends State<Game> {
     );
   }
 
-  Widget actionButton(String text, Color color, int pageIndex) => Expanded(
+  Widget actionButton(String text, Color color, int pageIndex, Color textColor) => Expanded(
     child: GestureDetector(
       onLongPress: () => navigateToFunctionalPage(pageIndex),
       child: Container(
         alignment: Alignment.center,
         color: color,
-        child: Text(text, style: const TextStyle(fontSize: 10, color: Colors.white)),
+        child: Text(text, style: TextStyle(fontSize: 10, color: textColor)),
       ),
     ),
   );
