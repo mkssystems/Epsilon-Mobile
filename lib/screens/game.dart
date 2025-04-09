@@ -151,11 +151,20 @@ class _GameState extends State<Game> {
               flex: 5,
               child: Container(
                 color: Colors.orangeAccent,
-                child: const Center(
-                  child: Text(
-                    "Action Bar",
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    actionButton("MOVE", Colors.green),
+                    verticalDivider(),
+                    actionButton("FIGHT", Colors.red),
+                    verticalDivider(),
+                    actionButton("STAY", Colors.blue),
+                    verticalDivider(),
+                    actionButton("EXPL", Colors.purple),
+                    verticalDivider(),
+                    actionButton("SPEC", Colors.teal),
+                  ],
                 ),
               ),
             ),
@@ -178,4 +187,17 @@ class _GameState extends State<Game> {
       ),
     );
   }
+
+  Widget actionButton(String text, Color color) => Expanded(
+    child: GestureDetector(
+      onLongPress: () {},
+      child: Container(
+        alignment: Alignment.center,
+        color: color,
+        child: Text(text, style: const TextStyle(fontSize: 10, color: Colors.white)),
+      ),
+    ),
+  );
+
+  Widget verticalDivider() => Container(width: 1, color: Colors.white);
 }
