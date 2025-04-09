@@ -10,6 +10,7 @@ class Game extends StatefulWidget {
 
 class _GameState extends State<Game> {
   String storyText = "";
+  PageController functionalPageController = PageController(initialPage: 1);
 
   @override
   void initState() {
@@ -23,6 +24,14 @@ class _GameState extends State<Game> {
     setState(() {
       storyText = loadedStory;
     });
+  }
+
+  void navigateToFunctionalPage(int pageIndex) {
+    functionalPageController.animateToPage(
+      pageIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -67,21 +76,12 @@ class _GameState extends State<Game> {
               child: PageView(
                 controller: PageController(initialPage: 1),
                 children: [
-                  Container(
-                    color: Colors.grey[100],
-                    child: const Center(child: Text("Graphic Screen Left")),
-                  ),
+                  Container(color: Colors.grey[100], child: const Center(child: Text("Graphic Screen Left"))),
                   Container(
                     color: Colors.black,
-                    child: Image.asset(
-                      'assets/fpv_graphics/FPV_tile_rendering.png',
-                      fit: BoxFit.contain,
-                    ),
+                    child: Image.asset('assets/fpv_graphics/FPV_tile_rendering.png', fit: BoxFit.contain),
                   ),
-                  Container(
-                    color: Colors.grey[200],
-                    child: const Center(child: Text("Graphic Screen Right")),
-                  ),
+                  Container(color: Colors.grey[200], child: const Center(child: Text("Graphic Screen Right"))),
                 ],
               ),
             ),
@@ -90,12 +90,9 @@ class _GameState extends State<Game> {
             Flexible(
               flex: 45,
               child: PageView(
-                controller: PageController(initialPage: 1),
+                controller: functionalPageController,
                 children: [
-                  Container(
-                    color: Colors.grey[300],
-                    child: const Center(child: Text("Functional Screen Left")),
-                  ),
+                  Container(color: Colors.grey[300], child: const Center(child: Text("Functional Screen Left"))),
                   Container(
                     color: Colors.grey[400],
                     padding: const EdgeInsets.all(16.0),
@@ -107,41 +104,11 @@ class _GameState extends State<Game> {
                       ),
                     ),
                   ),
-                  Container(
-                    color: Colors.grey[500],
-                    child: const Center(child: Text("Functional Screen Right 1")),
-                  ),
-                  Container(
-                    color: Colors.grey[600],
-                    child: const Center(child: Text("Functional Screen Right 2")),
-                  ),
-                  Container(
-                    color: Colors.grey[700],
-                    child: const Center(
-                      child: Text(
-                        "Functional Screen Right 3",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    color: Colors.grey[800],
-                    child: const Center(
-                      child: Text(
-                        "Functional Screen Right 4",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  Container(
-                    color: Colors.grey[900],
-                    child: const Center(
-                      child: Text(
-                        "Functional Screen Right 5",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
+                  functionalScreen("MOVE", Colors.green),
+                  functionalScreen("FIGHT", Colors.red),
+                  functionalScreen("STAY", Colors.blue),
+                  functionalScreen("EXPL", Colors.purple),
+                  functionalScreen("SPEC", Colors.teal),
                 ],
               ),
             ),
@@ -155,15 +122,15 @@ class _GameState extends State<Game> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    actionButton("MOVE", Colors.green),
+                    actionButton("MOVE", Colors.green, 2),
                     verticalDivider(),
-                    actionButton("FIGHT", Colors.red),
+                    actionButton("FIGHT", Colors.red, 3),
                     verticalDivider(),
-                    actionButton("STAY", Colors.blue),
+                    actionButton("STAY", Colors.blue, 4),
                     verticalDivider(),
-                    actionButton("EXPL", Colors.purple),
+                    actionButton("EXPL", Colors.purple, 5),
                     verticalDivider(),
-                    actionButton("SPEC", Colors.teal),
+                    actionButton("SPEC", Colors.teal, 6),
                   ],
                 ),
               ),
@@ -175,10 +142,7 @@ class _GameState extends State<Game> {
               child: Container(
                 color: Colors.black87,
                 child: const Center(
-                  child: Text(
-                    "Info Bar",
-                    style: TextStyle(color: Colors.white, fontSize: 12),
-                  ),
+                  child: Text("Info Bar", style: TextStyle(color: Colors.white, fontSize: 12)),
                 ),
               ),
             ),
@@ -188,13 +152,23 @@ class _GameState extends State<Game> {
     );
   }
 
-  Widget actionButton(String text, Color color) => Expanded(
+  Widget actionButton(String text, Color color, int pageIndex) => Expanded(
     child: GestureDetector(
-      onLongPress: () {},
+      onLongPress: () => navigateToFunctionalPage(pageIndex),
       child: Container(
         alignment: Alignment.center,
         color: color,
         child: Text(text, style: const TextStyle(fontSize: 10, color: Colors.white)),
+      ),
+    ),
+  );
+
+  Widget functionalScreen(String title, Color color) => Container(
+    color: color,
+    child: Center(
+      child: Text(
+        title,
+        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
       ),
     ),
   );
