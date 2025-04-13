@@ -89,6 +89,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                             builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
                           ),
                         );
+
                       },
                       child: const Text('Enter Game'),
                     ),
@@ -123,52 +124,82 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       MaterialPageRoute(
         builder: (_) => QRCodeScannerWidget(
           onScanned: (sessionId) async {
-            Navigator.pop(context); // Closes scanner after QR is read
-
-            // Explicit confirmation dialog
+            // First show confirmation dialog
             bool confirmJoin = await showDialog<bool>(
               context: context,
-              barrierDismissible: false, // Forces user decision
-              builder: (BuildContext context) => AlertDialog(
+              barrierDismissible: false,
+              builder: (BuildContext ctx) => AlertDialog(
                 title: const Text("Join Game Session"),
                 content: Text("Do you want to join session: $sessionId?"),
                 actions: [
                   TextButton(
                     child: const Text("Cancel"),
-                    onPressed: () => Navigator.pop(context, false),
+                    onPressed: () => Navigator.pop(ctx, false),
                   ),
                   ElevatedButton(
                     child: const Text("Join"),
-                    onPressed: () => Navigator.pop(context, true),
+                    onPressed: () => Navigator.pop(ctx, true),
                   ),
                 ],
               ),
             ) ??
-                false; // Handles null if dialog dismissed unexpectedly
+                false;
 
-            // Action based on user's choice
             if (confirmJoin) {
               try {
                 await service.joinGameSession(clientId, sessionId);
                 await refreshSessions();
+
+                if (!mounted) return;
+
+                // Navigate to Lobby and replace QR scanner
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GameLobbyScreen(
+                      sessionId: sessionId,
+                      clientId: clientId,
+                    ),
+                  ),
+                );
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Successfully joined session $sessionId')),
                 );
               } catch (e) {
+                if (!mounted) return;
+
+                // Pop QR scanner on failure
+                Navigator.pop(context);
+
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Failed to join session: $e')),
                 );
               }
             } else {
+              // Pop QR scanner if user cancels at confirmation dialog
+              if (mounted) Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Join cancelled')),
               );
             }
           },
+          onCancel: () {
+            // Pop QR scanner if the QR scanner itself is cancelled (e.g., system back pressed)
+            if (mounted) Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('QR scan cancelled')),
+            );
+          },
         ),
       ),
     );
   }
+
+
+
+
+
 
 
 

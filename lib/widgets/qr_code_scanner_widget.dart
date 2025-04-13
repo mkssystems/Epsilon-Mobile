@@ -2,17 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class QRCodeScannerWidget extends StatefulWidget {
-  final void Function(String) onScanned;
+  const QRCodeScannerWidget({
+    required this.onScanned,
+    required this.onCancel,
+    Key? key,
+  }) : super(key: key);
 
-  const QRCodeScannerWidget({required this.onScanned, Key? key}) : super(key: key);
+  final void Function(String sessionId) onScanned;
+  final VoidCallback onCancel;
 
   @override
   _QRCodeScannerWidgetState createState() => _QRCodeScannerWidgetState();
 }
 
 class _QRCodeScannerWidgetState extends State<QRCodeScannerWidget> {
-  MobileScannerController controller = MobileScannerController();
-
+  final MobileScannerController controller = MobileScannerController();
   bool isScanningComplete = false;
 
   @override
@@ -21,36 +25,53 @@ class _QRCodeScannerWidgetState extends State<QRCodeScannerWidget> {
     super.dispose();
   }
 
-  void handleBarcode(BarcodeCapture capture) async {
+  Future<void> handleBarcode(BarcodeCapture capture) async {
     if (isScanningComplete) return;
 
     final barcode = capture.barcodes.first;
     final sessionId = barcode.rawValue;
 
-    if (sessionId == null) return;
+    if (sessionId == null || sessionId.isEmpty) return;
 
     isScanningComplete = true;
 
-    // Stop camera immediately before navigating away
     await controller.stop();
+    await Future.delayed(const Duration(milliseconds: 500));
 
-    // Small delay to ensure camera resources are released
-    await Future.delayed(const Duration(milliseconds: 200));
-
-    // Safely navigate back to previous screen
     if (!mounted) return;
-    Navigator.pop(context);
 
+    Navigator.of(context).pop();
     widget.onScanned(sessionId);
+  }
+
+  void _cancelScanning() {
+    if (mounted && Navigator.canPop(context)) {
+      Navigator.of(context).pop();
+    }
+    widget.onCancel();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan QR Code')),
-      body: MobileScanner(
-        controller: controller,
-        onDetect: handleBarcode,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) { // ← fixed here
+        if (!didPop) {
+          _cancelScanning();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Scan QR Code'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _cancelScanning,
+          ),
+        ),
+        body: MobileScanner(
+          controller: controller,
+          onDetect: handleBarcode,
+        ),
       ),
     );
   }

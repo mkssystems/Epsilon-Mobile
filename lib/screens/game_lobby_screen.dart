@@ -150,72 +150,86 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Game Lobby'),
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: Colors.grey[300],
-            padding: const EdgeInsets.all(12),
-            child: Text(
-              'Session ID: ${widget.sessionId}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+    return PopScope(
+      canPop: false, // Prevent automatic pop
+      onPopInvoked: (didPop) {
+        if (!didPop) {
+          Navigator.of(context).pop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Game Lobby'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: loading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+          children: [
+            Container(
+              width: double.infinity,
+              color: Colors.grey[300],
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                'Session ID: ${widget.sessionId}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: players.length,
-              itemBuilder: (context, index) {
-                final player = players[index];
-                return ListTile(
-                  leading: Icon(
-                    player['ready'] ? Icons.check_circle : Icons.cancel,
-                    color: player['ready'] ? Colors.green : Colors.red,
-                  ),
-                  title: Text(
-                    'Client ID: ${player['client_id']}',
-                    style: TextStyle(
-                      fontWeight: player['client_id'] == widget.clientId
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+            Expanded(
+              child: ListView.builder(
+                itemCount: players.length,
+                itemBuilder: (context, index) {
+                  final player = players[index];
+                  return ListTile(
+                    leading: Icon(
+                      player['ready'] ? Icons.check_circle : Icons.cancel,
+                      color: player['ready'] ? Colors.green : Colors.red,
                     ),
-                  ),
-                );
-              },
+                    title: Text(
+                      'Client ID: ${player['client_id']}',
+                      style: TextStyle(
+                        fontWeight: player['client_id'] == widget.clientId
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                    myReadyStatus ? Colors.red : Colors.green,
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: myReadyStatus ? Colors.red : Colors.green,
+                    ),
+                    onPressed: toggleMyReadiness,
+                    child: Text(myReadyStatus ? 'Not Ready' : 'I am Ready'),
                   ),
-                  onPressed: toggleMyReadiness,
-                  child: Text(myReadyStatus ? 'Not Ready' : 'I am Ready'),
-                ),
-                const SizedBox(height: 10),
-                ElevatedButton(
-                  onPressed: allReady ? showStartGameDialog : null,
-                  child: const Text('Start Game'),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: allReady ? showStartGameDialog : null,
+                    child: const Text('Start Game'),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+
+
+
 }
