@@ -4,6 +4,7 @@ import '../services/game_menu_service.dart';
 import '../widgets/game_session_list_widget.dart';
 import '../widgets/create_game_session_dialog.dart';
 import '../widgets/game_session_details_dialog.dart';
+import '../widgets/qr_code_scanner_widget.dart';
 import 'game_lobby_screen.dart';
 
 class GameMenuScreen extends StatefulWidget {
@@ -37,11 +38,11 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     setState(() => loading = false);
   }
 
-
   void showCreateSession() {
     showDialog(
       context: context,
       builder: (_) => CreateGameSessionDialog(
+        userId: clientId,  // <-- correct this parameter
         onCreate: (size, scenario, maxPlayers) async {
           await service.createGameSession(
             size: size,
@@ -56,8 +57,9 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
   }
 
+
   void showSessionDetails(dynamic session) async {
-    await refreshSessions(); // Ensure session state is updated
+    await refreshSessions();
     if (!mounted) return;
 
     showDialog(
@@ -97,7 +99,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                   onPressed: () async {
                     await service.joinGameSession(clientId, session['id']);
                     await refreshSessions();
-                    setDialogState(() {}); // Only refresh dialog UI, do not close it
+                    setDialogState(() {});
                   },
                   child: const Text('Join'),
                 );
@@ -115,46 +117,60 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
   }
 
+  void scanQrAndJoinSession() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QRCodeScannerWidget(
+          onScanned: (sessionId) async {
+            Navigator.pop(context); // Closes scanner after QR is read
 
-  Widget buildActionButtons(dynamic session) {
-    if (currentSessionId == session['id']) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ElevatedButton(
-            onPressed: () async {
-              await service.leaveGameSession(clientId);
-              refreshSessions();
-              Navigator.pop(context);
-            },
-            child: const Text('Leave'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
-                ),
+            // Explicit confirmation dialog
+            bool confirmJoin = await showDialog<bool>(
+              context: context,
+              barrierDismissible: false, // Forces user decision
+              builder: (BuildContext context) => AlertDialog(
+                title: const Text("Join Game Session"),
+                content: Text("Do you want to join session: $sessionId?"),
+                actions: [
+                  TextButton(
+                    child: const Text("Cancel"),
+                    onPressed: () => Navigator.pop(context, false),
+                  ),
+                  ElevatedButton(
+                    child: const Text("Join"),
+                    onPressed: () => Navigator.pop(context, true),
+                  ),
+                ],
+              ),
+            ) ??
+                false; // Handles null if dialog dismissed unexpectedly
+
+            // Action based on user's choice
+            if (confirmJoin) {
+              try {
+                await service.joinGameSession(clientId, sessionId);
+                await refreshSessions();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Successfully joined session $sessionId')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to join session: $e')),
+                );
+              }
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Join cancelled')),
               );
-            },
-            child: const Text('Enter Game'),
-          ),
-        ],
-      );
-    } else if (currentSessionId == null) {
-      return ElevatedButton(
-        onPressed: () async {
-          await service.joinGameSession(clientId, session['id']);
-          refreshSessions();
-          Navigator.pop(context);
-        },
-        child: const Text('Join'),
-      );
-    }
-    return const SizedBox();
+            }
+          },
+        ),
+      ),
+    );
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -176,9 +192,18 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
               onTapSession: showSessionDetails,
             ),
           ),
-          ElevatedButton(
-            onPressed: showCreateSession,
-            child: const Text('Create Game Session'),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ElevatedButton(
+                onPressed: showCreateSession,
+                child: const Text('Create Game Session'),
+              ),
+              ElevatedButton(
+                onPressed: scanQrAndJoinSession,
+                child: const Text('Join via QR Code'),
+              ),
+            ],
           ),
         ],
       ),

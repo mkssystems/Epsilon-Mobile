@@ -18,6 +18,8 @@ dependencies:
   web_socket_channel: ^2.4.5  # <-- NEW: WebSocket client for real-time communication
   intl: ^0.20.2
   qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.7
+
 
 flutter:
   uses-material-design: true

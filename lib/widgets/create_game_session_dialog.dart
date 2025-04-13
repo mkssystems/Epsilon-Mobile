@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 class CreateGameSessionDialog extends StatefulWidget {
   final Function(int size, String scenario, int maxPlayers) onCreate;
+  final String userId;
 
-  const CreateGameSessionDialog({super.key, required this.onCreate});
+  const CreateGameSessionDialog({super.key, required this.onCreate, required this.userId});
 
   @override
   _CreateGameSessionDialogState createState() => _CreateGameSessionDialogState();
@@ -22,6 +23,13 @@ class _CreateGameSessionDialogState extends State<CreateGameSessionDialog> {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          TextFormField(
+            initialValue: widget.userId,
+            readOnly: true,
+            decoration: const InputDecoration(
+              labelText: "Your User ID",
+            ),
+          ),
           DropdownButtonFormField<String>(
             decoration: const InputDecoration(labelText: "Scenario"),
             value: selectedScenario,
