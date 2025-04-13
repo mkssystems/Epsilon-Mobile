@@ -16,7 +16,8 @@ dependencies:
   shared_preferences: ^2.2.2
   wakelock_plus: ^1.1.1
   web_socket_channel: ^2.4.5  # <-- NEW: WebSocket client for real-time communication
-  intl: ^0.17.0
+  intl: ^0.20.2
+  qr_flutter: ^4.1.0
 
 flutter:
   uses-material-design: true

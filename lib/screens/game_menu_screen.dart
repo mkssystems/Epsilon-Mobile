@@ -3,6 +3,8 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/game_menu_service.dart';
 import '../widgets/game_session_list_widget.dart';
 import '../widgets/create_game_session_dialog.dart';
+import '../widgets/game_session_details_dialog.dart';
+import 'game_lobby_screen.dart';
 
 class GameMenuScreen extends StatefulWidget {
   const GameMenuScreen({super.key});
@@ -53,14 +55,115 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     );
   }
 
-  void onTapSession(dynamic session) {
-    // Implement your logic here for tapping a session.
+  void showSessionDetails(dynamic session) async {
+    await refreshSessions(); // Ensure session state is updated
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext dialogContext, void Function(void Function()) setDialogState) {
+            Widget buildActionButtons() {
+              if (currentSessionId == session['id']) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () async {
+                        await service.leaveGameSession(clientId);
+                        await refreshSessions();
+                        setDialogState(() {});
+                      },
+                      child: const Text('Leave'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(dialogContext);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
+                          ),
+                        );
+                      },
+                      child: const Text('Enter Game'),
+                    ),
+                  ],
+                );
+              } else if (currentSessionId == null) {
+                return ElevatedButton(
+                  onPressed: () async {
+                    await service.joinGameSession(clientId, session['id']);
+                    await refreshSessions();
+                    setDialogState(() {}); // Only refresh dialog UI, do not close it
+                  },
+                  child: const Text('Join'),
+                );
+              }
+              return const SizedBox();
+            }
+
+            return GameSessionDetailsDialog(
+              session: session,
+              actionButtons: buildActionButtons(),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
+  Widget buildActionButtons(dynamic session) {
+    if (currentSessionId == session['id']) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton(
+            onPressed: () async {
+              await service.leaveGameSession(clientId);
+              refreshSessions();
+              Navigator.pop(context);
+            },
+            child: const Text('Leave'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
+                ),
+              );
+            },
+            child: const Text('Enter Game'),
+          ),
+        ],
+      );
+    } else if (currentSessionId == null) {
+      return ElevatedButton(
+        onPressed: () async {
+          await service.joinGameSession(clientId, session['id']);
+          refreshSessions();
+          Navigator.pop(context);
+        },
+        child: const Text('Join'),
+      );
+    }
+    return const SizedBox();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Game Menu')),
+      appBar: AppBar(
+        title: const Text('Game Menu'),
+        actions: [
+          IconButton(icon: const Icon(Icons.refresh), onPressed: refreshSessions),
+        ],
+      ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
@@ -69,7 +172,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
             child: GameSessionListWidget(
               sessions: sessions,
               currentSessionId: currentSessionId,
-              onTapSession: onTapSession,
+              onTapSession: showSessionDetails,
             ),
           ),
           ElevatedButton(

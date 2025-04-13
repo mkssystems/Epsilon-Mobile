@@ -43,9 +43,30 @@ class GameMenuService {
         'max_players': maxPlayers,
       }),
     );
-
     if (response.statusCode != 200) {
       throw Exception('Failed to create session: ${response.body}');
+    }
+  }
+
+  Future<void> joinGameSession(String clientId, String sessionId) async {
+    final response = await http.post(
+      Uri.parse('$backendUrl/game_sessions/$sessionId/join'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'client_id': clientId}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to join session: ${response.body}');
+    }
+  }
+
+  Future<void> leaveGameSession(String clientId) async {
+    final response = await http.post(
+      Uri.parse('$backendUrl/game_sessions/leave'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'client_id': clientId}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to leave session: ${response.body}');
     }
   }
 
