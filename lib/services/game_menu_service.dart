@@ -26,6 +26,17 @@ class GameMenuService {
     }
   }
 
+  Future<List<dynamic>> fetchJoinedGameSessions(String clientId) async {
+    final response = await http.get(Uri.parse('$backendUrl/game_sessions/user/$clientId/joined'));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['sessions'];
+    } else {
+      throw Exception('Failed to load joined sessions');
+    }
+  }
+
+
   Future<void> createGameSession({
     required int size,
     required String creatorClientId,

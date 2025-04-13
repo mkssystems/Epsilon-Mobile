@@ -31,12 +31,20 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     });
   }
 
+  List<dynamic> createdSessions = [];
+  List<dynamic> joinedSessions = [];
+
   Future<void> refreshSessions() async {
     setState(() => loading = true);
-    sessions = await service.fetchGameSessions(clientId);
+
+    createdSessions = await service.fetchGameSessions(clientId);
+    joinedSessions = await service.fetchJoinedGameSessions(clientId);
+
     currentSessionId = await service.checkClientSessionState(clientId);
+
     setState(() => loading = false);
   }
+
 
   void showCreateSession() {
     showDialog(
@@ -203,30 +211,53 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-        children: [
-          Expanded(
-            child: GameSessionListWidget(
-              sessions: sessions,
+          : SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Sessions I Created',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+            GameSessionListWidget(
+              sessions: createdSessions,
               currentSessionId: currentSessionId,
               onTapSession: showSessionDetails,
+              shrinkWrap: true,  // explicitly add this param clearly
+              physics: NeverScrollableScrollPhysics(),  // explicitly add this param clearly
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              ElevatedButton(
-                onPressed: showCreateSession,
-                child: const Text('Create Game Session'),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                'Sessions I Joined',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-              ElevatedButton(
-                onPressed: scanQrAndJoinSession,
-                child: const Text('Join via QR Code'),
-              ),
-            ],
-          ),
-        ],
+            ),
+            GameSessionListWidget(
+              sessions: joinedSessions,
+              currentSessionId: currentSessionId,
+              onTapSession: showSessionDetails,
+              shrinkWrap: true,  // explicitly add this param clearly
+              physics: NeverScrollableScrollPhysics(),  // explicitly add this param clearly
+            ),
+            const Divider(),
+            ElevatedButton(
+              onPressed: showCreateSession,
+              child: const Text('Create Game Session'),
+            ),
+            ElevatedButton(
+              onPressed: scanQrAndJoinSession,
+              child: const Text('Join via QR Code'),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+
 }

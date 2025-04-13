@@ -35,9 +35,11 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   @override
   void initState() {
     super.initState();
-    connectWebSocket();
-    fetchCurrentStatus();
+    fetchCurrentStatus().then((_) {
+      connectWebSocket();
+    });
   }
+
 
   @override
   void dispose() {
