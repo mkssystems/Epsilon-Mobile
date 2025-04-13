@@ -124,7 +124,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       MaterialPageRoute(
         builder: (_) => QRCodeScannerWidget(
           onScanned: (sessionId) async {
-            // First show confirmation dialog
             bool confirmJoin = await showDialog<bool>(
               context: context,
               barrierDismissible: false,
@@ -142,8 +141,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                   ),
                 ],
               ),
-            ) ??
-                false;
+            ) ?? false;
 
             if (confirmJoin) {
               try {
@@ -152,8 +150,8 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
 
                 if (!mounted) return;
 
-                // Navigate to Lobby and replace QR scanner
-                Navigator.pushReplacement(
+                Navigator.pop(context); // pop QR scanner first
+                Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => GameLobbyScreen(
@@ -168,25 +166,21 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 );
               } catch (e) {
                 if (!mounted) return;
-
-                // Pop QR scanner on failure
-                Navigator.pop(context);
+                Navigator.pop(context); // pop QR scanner
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Failed to join session: $e')),
                 );
               }
             } else {
-              // Pop QR scanner if user cancels at confirmation dialog
-              if (mounted) Navigator.pop(context);
+              if (mounted) Navigator.pop(context); // pop QR scanner
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Join cancelled')),
               );
             }
           },
           onCancel: () {
-            // Pop QR scanner if the QR scanner itself is cancelled (e.g., system back pressed)
-            if (mounted) Navigator.pop(context);
+            if (mounted) Navigator.pop(context); // pop QR scanner
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('QR scan cancelled')),
             );
@@ -195,11 +189,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       ),
     );
   }
-
-
-
-
-
 
 
 

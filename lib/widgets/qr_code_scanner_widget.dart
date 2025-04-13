@@ -34,38 +34,26 @@ class _QRCodeScannerWidgetState extends State<QRCodeScannerWidget> {
     if (sessionId == null || sessionId.isEmpty) return;
 
     isScanningComplete = true;
-
     await controller.stop();
-    await Future.delayed(const Duration(milliseconds: 500));
 
-    if (!mounted) return;
-
-    Navigator.of(context).pop();
-    widget.onScanned(sessionId);
-  }
-
-  void _cancelScanning() {
-    if (mounted && Navigator.canPop(context)) {
-      Navigator.of(context).pop();
+    if (mounted) {
+      widget.onScanned(sessionId);
     }
-    widget.onCancel();
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) { // ← fixed here
-        if (!didPop) {
-          _cancelScanning();
-        }
+      onPopInvoked: (didPop) {
+        if (!didPop) widget.onCancel();
       },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Scan QR Code'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: _cancelScanning,
+            onPressed: widget.onCancel,
           ),
         ),
         body: MobileScanner(

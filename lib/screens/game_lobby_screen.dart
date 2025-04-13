@@ -151,18 +151,18 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false, // Prevent automatic pop
+      canPop: false,
       onPopInvoked: (didPop) {
-        if (!didPop) {
-          Navigator.of(context).pop();
-        }
+        if (!didPop && Navigator.canPop(context)) Navigator.pop(context);
       },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Game Lobby'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () {
+              if (Navigator.canPop(context)) Navigator.pop(context);
+            },
           ),
         ),
         body: loading
@@ -229,6 +229,8 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       ),
     );
   }
+
+
 
 
 
