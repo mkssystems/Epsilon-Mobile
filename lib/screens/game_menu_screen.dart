@@ -32,10 +32,11 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
 
   Future<void> refreshSessions() async {
     setState(() => loading = true);
-    sessions = await service.fetchGameSessions();
+    sessions = await service.fetchGameSessions(clientId);
     currentSessionId = await service.checkClientSessionState(clientId);
     setState(() => loading = false);
   }
+
 
   void showCreateSession() {
     showDialog(

@@ -16,8 +16,9 @@ class GameMenuService {
     return storedClientId;
   }
 
-  Future<List<dynamic>> fetchGameSessions() async {
-    final response = await http.get(Uri.parse('$backendUrl/game_sessions'));
+  Future<List<dynamic>> fetchGameSessions(String clientId) async {
+    final response = await http.get(Uri.parse('$backendUrl/game_sessions/user/$clientId'));
+
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['sessions'];
     } else {
