@@ -47,23 +47,31 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   void connectWebSocket() {
     channel = IOWebSocketChannel.connect(
-      Uri.parse('wss://epsilon-poc-2.onrender.com/ws/${widget.sessionId}'),
+      Uri.parse('wss://epsilon-poc-2.onrender.com/ws/${widget.sessionId}/${widget.clientId}'),
     );
 
     channel.stream.listen((message) {
       final data = jsonDecode(message);
-      setState(() {
-        players = data['players'];
-        allReady = data['all_ready'];
-        myReadyStatus = players
-            .firstWhere(
-              (player) => player['client_id'].toString() == widget.clientId.toString(),
-          orElse: () => {'ready': false},
-        )['ready'];
-        loading = false;
-      });
+
+      if (data != null && data['players'] != null) {
+        setState(() {
+          players = List.from(data['players']);
+          allReady = data['all_ready'] ?? false;
+          myReadyStatus = players
+              .firstWhere(
+                (player) => player['client_id'].toString() == widget.clientId.toString(),
+            orElse: () => {'ready': false},
+          )['ready'];
+          loading = false;
+        });
+      } else {
+        print("WebSocket data invalid: $data");
+      }
+    }, onError: (error) {
+      print("WebSocket error: $error");
     });
   }
+
 
 
   Future<void> fetchCurrentStatus() async {
