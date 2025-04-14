@@ -17,6 +17,8 @@ class GameLobbyScreen extends StatefulWidget {
   @override
   _GameLobbyScreenState createState() => _GameLobbyScreenState();
 }
+String creatorClientId = '';
+
 
 class _GameLobbyScreenState extends State<GameLobbyScreen> {
   final String backendUrl = 'https://epsilon-poc-2.onrender.com/api';
@@ -77,24 +79,44 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
 
   Future<void> fetchCurrentStatus() async {
+    // Fetch the client state first to get the creatorClientId explicitly
     final response = await http.get(
-      Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/status'),
+      Uri.parse('$backendUrl/game_sessions/client_state/${widget.clientId}'),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       setState(() {
-        players = data['players'];
-        allReady = data['all_ready'];
-        myReadyStatus = players
-            .firstWhere(
-              (player) => player['client_id'].toString() == widget.clientId.toString(),
-          orElse: () => {'ready': false},
-        )['ready'];
-        loading = false;
+        creatorClientId = data['session_details']['creator_client_id'] ?? '';
       });
+
+      // Next, fetch current readiness status
+      final statusResponse = await http.get(
+        Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/status'),
+      );
+
+      if (statusResponse.statusCode == 200) {
+        final statusData = jsonDecode(statusResponse.body);
+        setState(() {
+          players = statusData['players'];
+          allReady = statusData['all_ready'];
+          myReadyStatus = players
+              .firstWhere(
+                (player) => player['client_id'].toString() == widget.clientId.toString(),
+            orElse: () => {'ready': false},
+          )['ready'];
+          loading = false;
+        });
+      } else {
+        setState(() => loading = false);
+        showMessage('Failed to fetch readiness status.');
+      }
+    } else {
+      setState(() => loading = false);
+      showMessage('Failed to fetch session details.');
     }
   }
+
 
 
   Future<void> toggleMyReadiness() async {
@@ -227,10 +249,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                     child: Text(myReadyStatus ? 'Not Ready' : 'I am Ready'),
                   ),
                   const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: allReady ? showStartGameDialog : null,
-                    child: const Text('Start Game'),
-                  ),
+                  if (widget.clientId == creatorClientId) ...[
+                    ElevatedButton(
+                      onPressed: allReady ? showStartGameDialog : null,
+                      child: const Text('Start Game'),
+                    ),
+                  ],
                 ],
               ),
             ),
