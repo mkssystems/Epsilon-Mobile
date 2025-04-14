@@ -68,12 +68,19 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           )['ready'];
           loading = false;
         });
-      } else {
-        print("WebSocket data invalid: $data");
+      }
+
+      // Explicitly handle new "game_started" event
+      if (data != null && data['event'] == 'game_started') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Game()),
+        );
       }
     }, onError: (error) {
       print("WebSocket error: $error");
     });
+
   }
 
 
@@ -162,13 +169,15 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
               child: const Text("Not yet..."),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(context);
+                // Call backend explicitly to broadcast the game start
+                await http.post(Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/start_game'));
+
+                // The creator also directly moves into the game
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => const Game(),
-                  ),
+                  MaterialPageRoute(builder: (context) => const Game()),
                 );
               },
               child: const Text("Yes, let's go!"),
@@ -178,6 +187,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       },
     );
   }
+
 
 
   @override
