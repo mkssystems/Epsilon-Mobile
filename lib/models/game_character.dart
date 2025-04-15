@@ -31,4 +31,17 @@ class GameCharacter {
       scenario: json['scenario'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'type': type,
+      'age': age,
+      'role': role,
+      'portrait_path': portraitPath,
+      'backstory_path': backstoryPath,
+      'scenario': scenario,
+    };
+  }
 }

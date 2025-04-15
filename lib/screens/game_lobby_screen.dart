@@ -3,6 +3,9 @@ import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'game.dart'; // Add this import at the top
+import 'package:epsilon_mobile/models/game_character.dart';
+import 'package:epsilon_mobile/services/api_service.dart';
+
 
 class GameLobbyScreen extends StatefulWidget {
   final String sessionId;
@@ -24,6 +27,8 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   final String backendUrl = 'https://epsilon-poc-2.onrender.com/api';
   late IOWebSocketChannel channel;
   List<dynamic> players = [];
+  List<GameCharacter> availableCharacters = [];
+  bool isLoadingCharacters = true;
   bool allReady = false;
   bool myReadyStatus = false;
   bool loading = true;
@@ -40,7 +45,24 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
     fetchCurrentStatus().then((_) {
       connectWebSocket();
     });
+    fetchCharacters(); // clearly add this line to fetch characters explicitly
   }
+  Future<void> fetchCharacters() async {
+    try {
+      final characters = await apiService.fetchAvailableCharacters(widget.sessionId);
+      setState(() {
+        availableCharacters = characters;
+        isLoadingCharacters = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoadingCharacters = false;
+      });
+      print('Error fetching characters: $e');
+      showMessage('Failed to load available characters.');
+    }
+  }
+
 
 
   @override
