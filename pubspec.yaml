@@ -19,6 +19,7 @@ dependencies:
   intl: ^0.20.2
   qr_flutter: ^4.1.0
   mobile_scanner: ^3.5.7
+  provider: ^6.1.2
 
 
 flutter:
