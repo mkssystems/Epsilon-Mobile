@@ -32,6 +32,29 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   bool allReady = false;
   bool myReadyStatus = false;
   bool loading = true;
+  String? selectedCharacterId; // Explicitly track selected character
+
+  late ApiService apiService;
+
+
+  Future<void> submitCharacterSelection() async {
+    if (selectedCharacterId == null) {
+      showMessage('Please select a character first.');
+      return;
+    }
+
+    try {
+      await apiService.selectCharacter(
+        widget.sessionId,
+        widget.clientId,
+        selectedCharacterId!,
+      );
+      showMessage('Character selected successfully!');
+    } catch (e) {
+      showMessage('Failed to select character: $e');
+    }
+  }
+
 
   void showMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -42,6 +65,9 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   @override
   void initState() {
     super.initState();
+
+    apiService = ApiService(baseUrl: backendUrl);
+
     fetchCurrentStatus().then((_) {
       connectWebSocket();
     });
@@ -246,6 +272,59 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 textAlign: TextAlign.center,
               ),
             ),
+            // <-- Inserted New Character Selection Widget here -->
+            if (isLoadingCharacters)
+              const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else
+              SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: availableCharacters.length,
+                  itemBuilder: (context, index) {
+                    final character = availableCharacters[index];
+                    bool isSelected = character.id == selectedCharacterId; // Check if selected
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          selectedCharacterId = character.id; // Set the selected character explicitly
+                        });
+                      },
+                      child: Container(
+                        width: 100,
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isSelected ? Colors.blueAccent : Colors.transparent, // Highlight selected character
+                            width: 3,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Image.asset(character.portraitPath, fit: BoxFit.cover),
+                            ),
+                            Text(
+                              character.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                color: isSelected ? Colors.blueAccent : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+            // End of New Widget
             Expanded(
               child: ListView.builder(
                 itemCount: players.length,
@@ -281,6 +360,11 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                     child: Text(myReadyStatus ? 'Not Ready' : 'I am Ready'),
                   ),
                   const SizedBox(height: 10),
+                  ElevatedButton(
+                    onPressed: submitCharacterSelection, // <-- Add this line explicitly
+                    child: const Text('Confirm Character Selection'),
+                  ),
+                  const SizedBox(height: 10),
                   if (widget.clientId == creatorClientId) ...[
                     ElevatedButton(
                       onPressed: allReady ? showStartGameDialog : null,
@@ -290,14 +374,11 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 ],
               ),
             ),
+
           ],
         ),
       ),
     );
   }
-
-
-
-
 
 }

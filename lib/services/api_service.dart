@@ -8,7 +8,7 @@ class ApiService {
   ApiService({required this.baseUrl});
 
   Future<List<GameCharacter>> fetchAvailableCharacters(String sessionId) async {
-    final response = await http.get(Uri.parse('$baseUrl/api/game_sessions/$sessionId/available_characters'));
+    final response = await http.get(Uri.parse('$baseUrl/game_sessions/$sessionId/available_characters'));
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body)['available_characters'] as List;
