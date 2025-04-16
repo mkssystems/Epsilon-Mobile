@@ -18,15 +18,27 @@ class ApiService {
     }
   }
 
+// Corrected method sending parameters explicitly as query parameters:
   Future<void> selectCharacter(String sessionId, String clientId, String entityId) async {
+    final url = Uri.parse(
+      '$baseUrl/game_sessions/$sessionId/select_character'
+          '?client_id=${Uri.encodeComponent(clientId)}'
+          '&entity_id=${Uri.encodeComponent(entityId)}',
+    );
+
+    print('ApiService explicitly sending GET request to URL: $url');
+
     final response = await http.post(
-      Uri.parse('$baseUrl/api/game_sessions/$sessionId/select_character'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'client_id': clientId, 'entity_id': entityId}),
+      url,
+      headers: {'Content-Type': 'application/json'}, // headers remain valid
+      // No body is explicitly needed here since backend expects query parameters
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to select character');
+      print('Backend response explicitly: ${response.statusCode}, ${response.body}');
+      throw Exception('Failed to select character: ${response.body}');
     }
   }
+
+
 }

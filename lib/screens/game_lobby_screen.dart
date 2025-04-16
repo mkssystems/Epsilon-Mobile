@@ -43,6 +43,13 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       return;
     }
 
+    final payload = {
+      'client_id': widget.clientId,
+      'entity_id': selectedCharacterId!,
+    };
+
+    print('Explicitly sending character selection payload: ${jsonEncode(payload)}');
+
     try {
       await apiService.selectCharacter(
         widget.sessionId,
@@ -52,8 +59,10 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       showMessage('Character selected successfully!');
     } catch (e) {
       showMessage('Failed to select character: $e');
+      print('Character selection failed explicitly: $e');
     }
   }
+
 
 
   void showMessage(String message) {
@@ -177,13 +186,17 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   Future<void> toggleMyReadiness() async {
     final bool newReadyStatus = !myReadyStatus;
 
+    final payload = {
+      'client_id': widget.clientId,
+      'ready': newReadyStatus,
+    };
+
+    print('Sending toggle readiness payload explicitly: ${jsonEncode(payload)}');
+
     final response = await http.post(
       Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/toggle_readiness'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'client_id': widget.clientId,
-        'ready': newReadyStatus,
-      }),
+      body: jsonEncode(payload),
     );
 
     if (response.statusCode == 200) {
@@ -191,16 +204,15 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       setState(() {
         players = data['players'];
         allReady = data['all_ready'];
-        myReadyStatus = players
-            .firstWhere(
-              (player) => player['client_id'].toString() == widget.clientId.toString(),
-          orElse: () => {'ready': false},
-        )['ready'];
+        myReadyStatus = newReadyStatus;
       });
     } else {
-      showMessage('Failed to update readiness.');
+      showMessage('Failed to update readiness: ${response.body}');
+      print('Toggle readiness failed explicitly: ${response.statusCode}, ${response.body}');
     }
   }
+
+
 
   void showStartGameDialog() {
     showDialog(
