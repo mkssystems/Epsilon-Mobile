@@ -1,3 +1,5 @@
+// lib/screens/game_lobby_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
@@ -10,6 +12,7 @@ import 'package:epsilon_mobile/services/api_service.dart';
 class GameLobbyScreen extends StatefulWidget {
   final String sessionId;
   final String clientId;
+
 
   const GameLobbyScreen({
     super.key,
@@ -33,35 +36,79 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   bool myReadyStatus = false;
   bool loading = true;
   String? selectedCharacterId; // Explicitly track selected character
+  Map<String, String?> selectedCharactersByClient = {};
 
   late ApiService apiService;
 
+  bool isCharacterConfirmed(String characterId) {
+    return players.any((player) =>
+    player['ready'] == true &&
+        selectedCharactersByClient[player['client_id']] == characterId);
+  }
 
-  Future<void> submitCharacterSelection() async {
+
+  Future<void> fetchSelectedCharacters() async {
+    final response = await http.get(
+      Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/selected_characters'),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      setState(() {
+        selectedCharactersByClient = {
+          for (var item in data['selected_characters'])
+            item['client_id']: item['entity_id']
+        };
+      });
+    } else {
+      showMessage('Failed to fetch selected characters.');
+    }
+  }
+
+
+  Future<void> handleCharacterSelection() async {
     if (selectedCharacterId == null) {
       showMessage('Please select a character first.');
       return;
     }
 
-    final payload = {
-      'client_id': widget.clientId,
-      'entity_id': selectedCharacterId!,
-    };
+    bool isConfirmed = selectedCharactersByClient[widget.clientId] == selectedCharacterId;
 
-    print('Explicitly sending character selection payload: ${jsonEncode(payload)}');
-
-    try {
-      await apiService.selectCharacter(
-        widget.sessionId,
-        widget.clientId,
-        selectedCharacterId!,
+    if (isConfirmed) {
+      // Explicitly send client_id as query parameter
+      final response = await http.post(
+        Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/release_character?client_id=${widget.clientId}'),
+        headers: {'Content-Type': 'application/json'},
       );
-      showMessage('Character selected successfully!');
-    } catch (e) {
-      showMessage('Failed to select character: $e');
-      print('Character selection failed explicitly: $e');
+
+      if (response.statusCode == 200) {
+        showMessage('Character deselected successfully!');
+        setState(() {
+          selectedCharacterId = null; // reset selection
+          selectedCharactersByClient[widget.clientId] = null; // clear from the list
+        });
+        await fetchSelectedCharacters();
+        await fetchCharacters();
+      } else {
+        showMessage('Failed to deselect character: ${response.body}');
+      }
+    } else {
+      // handle confirmation
+      try {
+        await apiService.selectCharacter(
+          widget.sessionId,
+          widget.clientId,
+          selectedCharacterId!,
+        );
+        showMessage('Character selected successfully!');
+        await fetchSelectedCharacters();
+        await fetchCharacters();
+      } catch (e) {
+        showMessage('Failed to select character: $e');
+      }
     }
   }
+
 
 
 
@@ -74,14 +121,16 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   @override
   void initState() {
     super.initState();
-
     apiService = ApiService(baseUrl: backendUrl);
 
     fetchCurrentStatus().then((_) {
       connectWebSocket();
     });
-    fetchCharacters(); // clearly add this line to fetch characters explicitly
+    fetchCharacters();
+    fetchSelectedCharacters(); // <-- explicitly added this line
   }
+
+
   Future<void> fetchCharacters() async {
     try {
       final characters = await apiService.fetchAvailableCharacters(widget.sessionId);
@@ -125,20 +174,29 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           )['ready'];
           loading = false;
         });
+
+        // Explicitly refresh selected characters on every player update
+        fetchSelectedCharacters();
       }
 
-      // Explicitly handle new "game_started" event
       if (data != null && data['event'] == 'game_started') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const Game()),
         );
       }
+
+      // Explicit refresh on character selection/release events
+      if (data != null &&
+          (data['event'] == 'character_selected' || data['event'] == 'character_released')) {
+        fetchSelectedCharacters();
+        fetchCharacters(); // refresh available characters explicitly
+      }
     }, onError: (error) {
       print("WebSocket error: $error");
     });
-
   }
+
 
 
 
@@ -292,42 +350,100 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
               )
             else
               SizedBox(
-                height: 120,
+                height: 130,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: availableCharacters.length,
                   itemBuilder: (context, index) {
                     final character = availableCharacters[index];
-                    bool isSelected = character.id == selectedCharacterId; // Check if selected
+                    bool isSelectedByMe = character.id == selectedCharacterId;
+
+                    // Explicitly check if the character is confirmed by any player
+                    bool isConfirmed = isCharacterConfirmed(character.id);
+
+                    // Explicitly check if the character is selected by others (even if not confirmed)
+                    bool isTakenByOthers = selectedCharactersByClient.entries.any(
+                          (entry) => entry.value == character.id && entry.key != widget.clientId,
+                    );
+
+                    // Explicitly handle tap functionality correctly
+                    final bool selectable = !isConfirmed && !isTakenByOthers;
+
                     return GestureDetector(
-                      onTap: () {
+                      onTap: selectable
+                          ? () {
                         setState(() {
-                          selectedCharacterId = character.id; // Set the selected character explicitly
+                          selectedCharacterId = character.id;
                         });
-                      },
+                      }
+                          : null,
                       child: Container(
                         width: 100,
                         margin: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: isSelected ? Colors.blueAccent : Colors.transparent, // Highlight selected character
+                            color: isSelectedByMe ? Colors.blueAccent : Colors.transparent,
                             width: 3,
                           ),
                           borderRadius: BorderRadius.circular(8),
+                          color: selectable ? Colors.white : Colors.grey.shade300,
                         ),
-                        child: Column(
+                        child: Stack(
                           children: [
-                            Expanded(
-                              child: Image.asset(character.portraitPath, fit: BoxFit.cover),
+                            Column(
+                              children: [
+                                Expanded(
+                                  child: Opacity(
+                                    opacity: selectable ? 1.0 : 0.4, // explicitly safer opacity-based greying-out
+                                    child: Image.asset(
+                                      character.portraitPath,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+
+                                Text(
+                                  character.name,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: isSelectedByMe ? FontWeight.bold : FontWeight.normal,
+                                    color: selectable
+                                        ? (isSelectedByMe ? Colors.blueAccent : Colors.black)
+                                        : Colors.grey,
+                                  ),
+                                ),
+                              ],
                             ),
-                            Text(
-                              character.name,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                                color: isSelected ? Colors.blueAccent : Colors.black,
+                            if (isConfirmed)
+                              Positioned.fill(
+                                child: Container(
+                                  color: Colors.white.withOpacity(0.6),
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    'Confirmed ✔️',
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
+                            if (!isConfirmed && isTakenByOthers)
+                              Positioned.fill(
+                                child: Container(
+                                  color: Colors.white.withOpacity(0.6),
+                                  alignment: Alignment.center,
+                                  child: const Text(
+                                    'Taken',
+                                    style: TextStyle(
+                                      color: Colors.redAccent,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -336,29 +452,47 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 ),
               ),
 
+
+
+
             // End of New Widget
+
             Expanded(
               child: ListView.builder(
                 itemCount: players.length,
                 itemBuilder: (context, index) {
                   final player = players[index];
+                  final clientId = player['client_id'];
+                  final characterId = selectedCharactersByClient[clientId];
+
+                  // Explicitly use firstOrNull for safe lookup
+                  final matchedCharacter = availableCharacters.where(
+                        (char) => char.id == characterId,
+                  ).firstOrNull;
+
+                  final characterName = matchedCharacter?.name ?? "Not selected";
+
                   return ListTile(
                     leading: Icon(
                       player['ready'] ? Icons.check_circle : Icons.cancel,
                       color: player['ready'] ? Colors.green : Colors.red,
                     ),
                     title: Text(
-                      'Client ID: ${player['client_id']}',
+                      'Client ID: $clientId',
                       style: TextStyle(
-                        fontWeight: player['client_id'] == widget.clientId
+                        fontWeight: clientId == widget.clientId
                             ? FontWeight.bold
                             : FontWeight.normal,
                       ),
                     ),
+                    subtitle: Text('Character: $characterName'),
                   );
                 },
               ),
             ),
+
+
+
             const Divider(),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -372,10 +506,27 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                     child: Text(myReadyStatus ? 'Not Ready' : 'I am Ready'),
                   ),
                   const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: submitCharacterSelection, // <-- Add this line explicitly
-                    child: const Text('Confirm Character Selection'),
-                  ),
+                  if (!myReadyStatus) ...[
+                    ElevatedButton(
+                      onPressed: selectedCharacterId == null
+                          ? null
+                          : handleCharacterSelection,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: selectedCharacterId != null &&
+                            selectedCharactersByClient[widget.clientId] == selectedCharacterId
+                            ? Colors.orange
+                            : Colors.blue,
+                      ),
+                      child: Text(
+                        selectedCharacterId != null &&
+                            selectedCharactersByClient[widget.clientId] == selectedCharacterId
+                            ? 'Deselect Character'
+                            : 'Confirm Character Selection',
+                      ),
+                    ),
+                  ],
+
+
                   const SizedBox(height: 10),
                   if (widget.clientId == creatorClientId) ...[
                     ElevatedButton(
