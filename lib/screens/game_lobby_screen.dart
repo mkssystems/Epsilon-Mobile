@@ -36,17 +36,22 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   bool myReadyStatus = false;
   bool loading = true;
   String? selectedCharacterId; // Explicitly track selected character
-  Map<String, String?> selectedCharactersByClient = {};
+// Now tracks both the entity_id and locked status explicitly.
+  Map<String, Map<String, dynamic>> selectedCharactersByClient = {};
+
 
   late ApiService apiService;
 
+// Checks explicitly if a character is confirmed (locked) by any player.
   bool isCharacterConfirmed(String characterId) {
-    return players.any((player) =>
-    player['ready'] == true &&
-        selectedCharactersByClient[player['client_id']] == characterId);
+    return selectedCharactersByClient.values.any((selection) =>
+    selection['entity_id'] == characterId && selection['locked'] == true);
   }
 
 
+
+// Fetch selected characters along with their locked (confirmed) status explicitly.
+  // Explicitly fetch currently selected characters from the backend
   Future<void> fetchSelectedCharacters() async {
     final response = await http.get(
       Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/selected_characters'),
@@ -54,16 +59,32 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+
       setState(() {
-        selectedCharactersByClient = {
-          for (var item in data['selected_characters'])
-            item['client_id']: item['entity_id']
-        };
+        selectedCharactersByClient.clear();
+
+        for (var item in data['selected_characters']) {
+          if (item['entity_id'] != null) {
+            selectedCharactersByClient[item['client_id']] = {
+              'entity_id': item['entity_id'],
+              'locked': item['locked'],
+            };
+          }
+        }
+
+        // Explicitly validate if the previously selected character is still valid
+        final currentSelection = selectedCharactersByClient[widget.clientId]?['entity_id'];
+        if (currentSelection == null || (selectedCharacterId != null && currentSelection != selectedCharacterId)) {
+          selectedCharacterId = null;  // Explicitly reset local selection
+        }
       });
     } else {
       showMessage('Failed to fetch selected characters.');
     }
   }
+
+
+
 
 
   Future<void> handleCharacterSelection() async {
@@ -72,10 +93,11 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       return;
     }
 
-    bool isConfirmed = selectedCharactersByClient[widget.clientId] == selectedCharacterId;
+    // Check explicitly if the currently selected character matches what is recorded in the backend
+    bool isAlreadySelected = selectedCharactersByClient[widget.clientId]?['entity_id'] == selectedCharacterId;
 
-    if (isConfirmed) {
-      // Explicitly send client_id as query parameter
+    if (isAlreadySelected) {
+      // Explicitly request backend to release character selection for this client
       final response = await http.post(
         Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/release_character?client_id=${widget.clientId}'),
         headers: {'Content-Type': 'application/json'},
@@ -83,17 +105,22 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
       if (response.statusCode == 200) {
         showMessage('Character deselected successfully!');
+
         setState(() {
-          selectedCharacterId = null; // reset selection
-          selectedCharactersByClient[widget.clientId] = null; // clear from the list
+          selectedCharacterId = null;
+          selectedCharactersByClient.remove(widget.clientId);
         });
+
         await fetchSelectedCharacters();
         await fetchCharacters();
       } else {
-        showMessage('Failed to deselect character: ${response.body}');
+        // Explicitly handle backend message
+        final error = jsonDecode(response.body)['detail'] ?? response.body;
+        showMessage('Failed to deselect character: $error');
+        await fetchSelectedCharacters(); // Refresh explicitly even if failed
       }
     } else {
-      // handle confirmation
+      // Explicitly handle confirming a new character selection
       try {
         await apiService.selectCharacter(
           widget.sessionId,
@@ -101,6 +128,8 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
           selectedCharacterId!,
         );
         showMessage('Character selected successfully!');
+
+        // Explicitly refresh immediately after backend confirmation
         await fetchSelectedCharacters();
         await fetchCharacters();
       } catch (e) {
@@ -108,6 +137,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       }
     }
   }
+
 
 
 
@@ -133,19 +163,27 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   Future<void> fetchCharacters() async {
     try {
-      final characters = await apiService.fetchAvailableCharacters(widget.sessionId);
-      setState(() {
-        availableCharacters = characters;
-        isLoadingCharacters = false;
-      });
+      final response = await http.get(
+        Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/all_characters'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          availableCharacters = (data['all_characters'] as List)
+              .map((json) => GameCharacter.fromJson(json))
+              .toList();
+          isLoadingCharacters = false;
+        });
+      } else {
+        throw Exception('Failed to load all characters');
+      }
     } catch (e) {
-      setState(() {
-        isLoadingCharacters = false;
-      });
-      print('Error fetching characters: $e');
+      setState(() => isLoadingCharacters = false);
       showMessage('Failed to load available characters.');
     }
   }
+
 
 
 
@@ -265,9 +303,10 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
         myReadyStatus = newReadyStatus;
       });
     } else {
-      showMessage('Failed to update readiness: ${response.body}');
-      print('Toggle readiness failed explicitly: ${response.statusCode}, ${response.body}');
+      final error = jsonDecode(response.body)['detail'] ?? response.body;
+      showMessage('Failed to update readiness: $error');
     }
+
   }
 
 
@@ -361,22 +400,25 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                     // Explicitly check if the character is confirmed by any player
                     bool isConfirmed = isCharacterConfirmed(character.id);
 
-                    // Explicitly check if the character is selected by others (even if not confirmed)
+                    // Explicitly checks if the character is selected (confirmed or unconfirmed) by another client.
                     bool isTakenByOthers = selectedCharactersByClient.entries.any(
-                          (entry) => entry.value == character.id && entry.key != widget.clientId,
+                          (entry) => entry.value['entity_id'] == character.id && entry.key != widget.clientId,
                     );
+
 
                     // Explicitly handle tap functionality correctly
                     final bool selectable = !isConfirmed && !isTakenByOthers;
 
                     return GestureDetector(
-                      onTap: selectable
+                      // Only allow selecting a character if it is selectable and the player is NOT ready
+                      onTap: (selectable && !myReadyStatus)
                           ? () {
+                        // Explicitly update local selection state
                         setState(() {
                           selectedCharacterId = character.id;
                         });
                       }
-                          : null,
+                          : null,  // explicitly disable tap if player is ready or character isn't selectable
                       child: Container(
                         width: 100,
                         margin: const EdgeInsets.all(8),
@@ -463,14 +505,21 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                 itemBuilder: (context, index) {
                   final player = players[index];
                   final clientId = player['client_id'];
-                  final characterId = selectedCharactersByClient[clientId];
 
-                  // Explicitly use firstOrNull for safe lookup
-                  final matchedCharacter = availableCharacters.where(
-                        (char) => char.id == characterId,
-                  ).firstOrNull;
+                  // Explicitly get the selected character ID and lock status for each client.
+                  final characterInfo = selectedCharactersByClient[clientId];
+                  final characterId = characterInfo?['entity_id'];
+                  final locked = characterInfo?['locked'] ?? false;
+
+                  // Explicitly handle the case where no character matches by returning null safely.
+                  final matchedCharacter = availableCharacters.cast<GameCharacter?>().firstWhere(
+                        (char) => char!.id == characterId,
+                    orElse: () => null,
+                  );
+
 
                   final characterName = matchedCharacter?.name ?? "Not selected";
+                  final characterStatus = locked ? " (Confirmed)" : characterId != null ? " (Selected)" : "";
 
                   return ListTile(
                     leading: Icon(
@@ -485,11 +534,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                             : FontWeight.normal,
                       ),
                     ),
-                    subtitle: Text('Character: $characterName'),
+                    subtitle: Text('Character: $characterName$characterStatus'), // explicitly indicates status
                   );
                 },
               ),
             ),
+
 
 
 
@@ -508,22 +558,20 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                   const SizedBox(height: 10),
                   if (!myReadyStatus) ...[
                     ElevatedButton(
-                      onPressed: selectedCharacterId == null
+                      // Disable button explicitly if no character selected or if player is ready
+                      onPressed: (selectedCharacterId == null || myReadyStatus)
                           ? null
                           : handleCharacterSelection,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: selectedCharacterId != null &&
-                            selectedCharactersByClient[widget.clientId] == selectedCharacterId
-                            ? Colors.orange
-                            : Colors.blue,
-                      ),
                       child: Text(
+                        // Explicitly update button text based on selection status
                         selectedCharacterId != null &&
-                            selectedCharactersByClient[widget.clientId] == selectedCharacterId
+                            selectedCharactersByClient[widget.clientId]?['entity_id'] == selectedCharacterId
                             ? 'Deselect Character'
                             : 'Confirm Character Selection',
                       ),
                     ),
+
+
                   ],
 
 
