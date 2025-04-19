@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'screens/video_screen.dart';
+import 'package:epsilon_mobile/screens/intro_screen.dart';
+
 
 class EpsilonApp extends StatelessWidget {
   const EpsilonApp({super.key});
@@ -9,7 +10,7 @@ class EpsilonApp extends StatelessWidget {
     return MaterialApp(
       title: 'Epsilon 267',
       theme: ThemeData.dark(),
-      home: const VideoScreen(),
+      home: const IntroScreen(),
     );
   }
 }

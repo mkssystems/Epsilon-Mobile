@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'game.dart'; // Add this import at the top
 import 'package:epsilon_mobile/models/game_character.dart';
 import 'package:epsilon_mobile/services/api_service.dart';
+import 'package:epsilon_mobile/screens/intro_screen.dart';
+
 
 
 class GameLobbyScreen extends StatefulWidget {
@@ -220,8 +222,9 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
       if (data != null && data['event'] == 'game_started') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const Game()),
+          MaterialPageRoute(builder: (context) => const IntroScreen()),
         );
+
       }
 
       // Explicit refresh on character selection/release events
@@ -522,20 +525,35 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
                   final characterStatus = locked ? " (Confirmed)" : characterId != null ? " (Selected)" : "";
 
                   return ListTile(
+                    // Shows an icon indicating if the player is ready or not
                     leading: Icon(
                       player['ready'] ? Icons.check_circle : Icons.cancel,
                       color: player['ready'] ? Colors.green : Colors.red,
                     ),
-                    title: Text(
-                      'Client ID: $clientId',
-                      style: TextStyle(
-                        fontWeight: clientId == widget.clientId
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+
+                    // The player's Client ID displayed in a special styled container if it's the current user's ID
+                    title: clientId == widget.clientId
+                        ? Container(
+                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8), // Padding around the Client ID
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueAccent, width: 2), // Blue accent border
+                        borderRadius: BorderRadius.circular(8), // Rounded corners for aesthetic appeal
+                        color: Colors.blueAccent.withOpacity(0.1), // Light blue background for subtle emphasis
                       ),
-                    ),
-                    subtitle: Text('Character: $characterName$characterStatus'), // explicitly indicates status
+                      child: Text(
+                        'Client ID: $clientId',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold, // Keep bold for further distinction
+                          color: Colors.blueAccent, // Match the border with blue accent color
+                        ),
+                      ),
+                    )
+                        : Text('Client ID: $clientId'), // Regular text style for other player IDs
+
+                    // Subtitle showing the player's selected character and its status (selected/confirmed)
+                    subtitle: Text('Character: $characterName$characterStatus'),
                   );
+
                 },
               ),
             ),
