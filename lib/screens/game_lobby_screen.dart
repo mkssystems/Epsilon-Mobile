@@ -331,15 +331,10 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
             ElevatedButton(
               onPressed: () async {
                 Navigator.pop(context);
-                // Call backend explicitly to broadcast the game start
+                // ONLY trigger backend broadcast, no direct navigation here
                 await http.post(Uri.parse('$backendUrl/game_sessions/${widget.sessionId}/start_game'));
-
-                // The creator also directly moves into the game
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => const Game()),
-                );
               },
+
               child: const Text("Yes, let's go!"),
             ),
           ],
