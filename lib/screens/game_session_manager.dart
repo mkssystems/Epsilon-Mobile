@@ -31,8 +31,9 @@ class _GameSessionManagerState extends State<GameSessionManager> {
     webSocketService.connect(
       sessionId: widget.sessionId,
       clientId: widget.clientId,
-      onMessage: handleWebSocketMessage,
     );
+    webSocketService.addListener(handleWebSocketMessage);  // explicitly add listener here
+
   }
 
   void handleWebSocketMessage(dynamic message) {
@@ -51,9 +52,11 @@ class _GameSessionManagerState extends State<GameSessionManager> {
 
   @override
   void dispose() {
+    webSocketService.removeListener(handleWebSocketMessage);  // explicitly remove listener
     webSocketService.disconnect();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {

@@ -154,11 +154,35 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   void initState() {
     super.initState();
     apiService = ApiService(baseUrl: backendUrl);
+    widget.webSocketService.addListener(handleWebSocketMessage);
 
     fetchCurrentStatus();
     fetchCharacters();
     fetchSelectedCharacters();
-    // explicitly removed connectWebSocket() call
+
+  }
+
+
+  void handleWebSocketMessage(dynamic message) {
+    final data = jsonDecode(message);
+    if (data != null) {
+      if (data['event'] == 'character_selected' || data['event'] == 'character_released') {
+        fetchSelectedCharacters();
+        fetchCharacters();
+      }
+      if (data['players'] != null) {
+        setState(() {
+          players = List.from(data['players']);
+          allReady = data['all_ready'] ?? false;
+          myReadyStatus = players
+              .firstWhere(
+                (player) => player['client_id'].toString() == widget.clientId.toString(),
+            orElse: () => {'ready': false},
+          )['ready'];
+        });
+        fetchSelectedCharacters();
+      }
+    }
   }
 
 
@@ -191,6 +215,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   @override
   void dispose() {
+    widget.webSocketService.removeListener(handleWebSocketMessage);
     super.dispose();  // explicitly removed channel.sink.close()
   }
 

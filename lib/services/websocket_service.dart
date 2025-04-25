@@ -1,63 +1,80 @@
 // lib/services/websocket_service.dart
-
 import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
+import 'dart:async';  // explicitly needed for Timer
 
 typedef WebSocketMessageHandler = void Function(dynamic message);
 
 class WebSocketService {
   late IOWebSocketChannel _channel;
-  late WebSocketMessageHandler _messageHandler;
-
   bool _isConnected = false;
 
-  // Explicitly establish a connection to the WebSocket server
+  final List<WebSocketMessageHandler> _listeners = [];
+
+  Timer? _heartbeatTimer;  // explicitly for sending periodic pings
+
   void connect({
     required String sessionId,
     required String clientId,
-    required WebSocketMessageHandler onMessage,
   }) {
     final uri = Uri.parse(
       'wss://epsilon-poc-2.onrender.com/ws/$sessionId/$clientId',
     );
 
     _channel = IOWebSocketChannel.connect(uri);
-    _messageHandler = onMessage;
 
     _channel.stream.listen(
           (message) {
         _isConnected = true;
-        _messageHandler(message);
+        for (var listener in _listeners) {
+          listener(message);
+        }
       },
       onDone: () {
         _isConnected = false;
-        print("[INFO] WebSocket connection explicitly closed by server.");
+        print("[INFO] WebSocket explicitly closed by server.");
+        _heartbeatTimer?.cancel();  // explicitly stop ping timer when connection closes
       },
       onError: (error) {
         _isConnected = false;
         print("[ERROR] WebSocket error explicitly occurred: $error");
+        _heartbeatTimer?.cancel();  // explicitly stop ping timer on error
       },
     );
+
+    // Explicitly initiate heartbeat ping every 30 seconds
+    _heartbeatTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      sendMessage({"type": "ping"});  // explicit ping message
+      print("[INFO] Sent explicit heartbeat ping to server.");
+    });
   }
 
-  // Explicitly send a JSON-formatted message through the WebSocket
   void sendMessage(dynamic message) {
     if (_isConnected) {
       _channel.sink.add(jsonEncode(message));
     } else {
-      print("[WARN] Attempted explicitly to send a message but WebSocket is disconnected.");
+      print("[WARN] Attempted explicitly to send message but WebSocket is disconnected.");
     }
   }
 
-  // Explicitly disconnect from the WebSocket server
   void disconnect() {
     if (_isConnected) {
       _channel.sink.close();
       _isConnected = false;
       print("[INFO] WebSocket explicitly disconnected by client.");
     }
+    _heartbeatTimer?.cancel();  // explicitly stop heartbeat ping on disconnect
   }
 
-  // Check explicitly if WebSocket is currently connected
   bool get isConnected => _isConnected;
+
+  void addListener(WebSocketMessageHandler listener) {
+    if (!_listeners.contains(listener)) {
+      _listeners.add(listener);
+    }
+  }
+
+  void removeListener(WebSocketMessageHandler listener) {
+    _listeners.remove(listener);
+  }
 }
