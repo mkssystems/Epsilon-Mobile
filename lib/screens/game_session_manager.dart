@@ -39,13 +39,14 @@ class _GameSessionManagerState extends State<GameSessionManager> {
     final data = jsonDecode(message);
 
     if (data != null && data['event'] == 'game_started') {
-      Navigator.pushReplacement(
+      Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => IntroScreen(webSocketService: webSocketService),
+          builder: (context) => const IntroScreen(), // explicitly remove webSocketService
         ),
       );
     }
+
   }
 
   @override
