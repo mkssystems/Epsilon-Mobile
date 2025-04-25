@@ -1,26 +1,27 @@
 // lib/screens/game_lobby_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:web_socket_channel/io.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'game.dart'; // Add this import at the top
 import 'package:epsilon_mobile/models/game_character.dart';
 import 'package:epsilon_mobile/services/api_service.dart';
-import 'package:epsilon_mobile/screens/intro_screen.dart';
+import 'package:epsilon_mobile/services/websocket_service.dart';
+
 
 
 
 class GameLobbyScreen extends StatefulWidget {
   final String sessionId;
   final String clientId;
-
+  final WebSocketService webSocketService; // THIS IS CRITICAL TO ADD
 
   const GameLobbyScreen({
     super.key,
     required this.sessionId,
     required this.clientId,
+    required this.webSocketService, // THIS PARAMETER IS REQUIRED
   });
+
 
   @override
   _GameLobbyScreenState createState() => _GameLobbyScreenState();
@@ -30,7 +31,6 @@ String creatorClientId = '';
 
 class _GameLobbyScreenState extends State<GameLobbyScreen> {
   final String backendUrl = 'https://epsilon-poc-2.onrender.com/api';
-  late IOWebSocketChannel channel;
   List<dynamic> players = [];
   List<GameCharacter> availableCharacters = [];
   bool isLoadingCharacters = true;
@@ -155,12 +155,12 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
     super.initState();
     apiService = ApiService(baseUrl: backendUrl);
 
-    fetchCurrentStatus().then((_) {
-      connectWebSocket();
-    });
+    fetchCurrentStatus();
     fetchCharacters();
-    fetchSelectedCharacters(); // <-- explicitly added this line
+    fetchSelectedCharacters();
+    // explicitly removed connectWebSocket() call
   }
+
 
 
   Future<void> fetchCharacters() async {
@@ -191,51 +191,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   @override
   void dispose() {
-    channel.sink.close();
-    super.dispose();
-  }
-
-  void connectWebSocket() {
-    channel = IOWebSocketChannel.connect(
-      Uri.parse('wss://epsilon-poc-2.onrender.com/ws/${widget.sessionId}/${widget.clientId}'),
-    );
-
-    channel.stream.listen((message) {
-      final data = jsonDecode(message);
-
-      if (data != null && data['players'] != null) {
-        setState(() {
-          players = List.from(data['players']);
-          allReady = data['all_ready'] ?? false;
-          myReadyStatus = players
-              .firstWhere(
-                (player) => player['client_id'].toString() == widget.clientId.toString(),
-            orElse: () => {'ready': false},
-          )['ready'];
-          loading = false;
-        });
-
-        // Explicitly refresh selected characters on every player update
-        fetchSelectedCharacters();
-      }
-
-      if (data != null && data['event'] == 'game_started') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const IntroScreen()),
-        );
-
-      }
-
-      // Explicit refresh on character selection/release events
-      if (data != null &&
-          (data['event'] == 'character_selected' || data['event'] == 'character_released')) {
-        fetchSelectedCharacters();
-        fetchCharacters(); // refresh available characters explicitly
-      }
-    }, onError: (error) {
-      print("WebSocket error: $error");
-    });
+    super.dispose();  // explicitly removed channel.sink.close()
   }
 
 

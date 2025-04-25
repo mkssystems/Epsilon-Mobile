@@ -1,3 +1,5 @@
+//lib/screens/game_menu_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/game_menu_service.dart';
@@ -5,7 +7,7 @@ import '../widgets/game_session_list_widget.dart';
 import '../widgets/create_game_session_dialog.dart';
 import '../widgets/game_session_details_dialog.dart';
 import '../widgets/qr_code_scanner_widget.dart';
-import 'game_lobby_screen.dart';
+import 'game_session_manager.dart';
 
 class GameMenuScreen extends StatefulWidget {
   const GameMenuScreen({super.key});
@@ -94,9 +96,10 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
+                            builder: (_) => GameSessionManager(sessionId: session['id'], clientId: clientId), //✅ corrected
                           ),
                         );
+
 
                       },
                       child: const Text('Enter Game'),
@@ -162,12 +165,10 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => GameLobbyScreen(
-                      sessionId: sessionId,
-                      clientId: clientId,
-                    ),
+                    builder: (_) => GameSessionManager(sessionId: sessionId, clientId: clientId), //✅ corrected
                   ),
                 );
+
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Successfully joined session $sessionId')),
