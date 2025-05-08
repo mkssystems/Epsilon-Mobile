@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:epsilon_mobile/screens/game.dart';
+import 'package:epsilon_mobile/screens/tile_placement.dart'; // Explicit import of new screen
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
@@ -15,17 +15,18 @@ class IntroScreen extends StatefulWidget {
 
 class _IntroScreenState extends State<IntroScreen> {
   late VideoPlayerController controller;
-  bool showText = true;          // Explicitly track whether intro text or video is shown
-  String markdownContent = '';   // Content of the markdown file
-  bool isLoading = true;         // Indicates if markdown content is loading
+  bool showText = false;         // Start explicitly with video
+  String markdownContent = '';
+  bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadMarkdown();  // Initially load the markdown content
+    loadMarkdown();                  // Load markdown explicitly on init
+    initializeAndPlayVideo();        // Initialize and play video immediately
   }
 
-  // Explicitly loads markdown file content
+  // Explicitly load markdown content
   Future<void> loadMarkdown() async {
     final String content = await rootBundle.loadString('assets/backstories/epsilon267_intro.md');
     setState(() {
@@ -34,7 +35,7 @@ class _IntroScreenState extends State<IntroScreen> {
     });
   }
 
-  // Explicitly initialize and play video after user taps "OK"
+  // Explicitly initialize video playback immediately
   void initializeAndPlayVideo() {
     controller = VideoPlayerController.asset('assets/videos/epsilon_intro.mp4')
       ..initialize().then((_) {
@@ -42,19 +43,25 @@ class _IntroScreenState extends State<IntroScreen> {
         controller.play();
       });
 
+    // Explicitly handle video completion to show text
     controller.addListener(() {
       if (controller.value.position >= controller.value.duration) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const Game()),
-        );
+        setState(() {
+          showText = true; // Switch explicitly to showing markdown text
+        });
       }
     });
   }
 
+  // Explicit placeholder for sending readiness confirmation (backend integration in next steps)
+  void sendReadyConfirmation() {
+    // TODO: Implement explicit backend API/WebSocket call to send readiness confirmation
+    print("Player confirmed ready. Placeholder for backend call.");
+  }
+
   @override
   void dispose() {
-    controller.dispose(); // Dispose video controller explicitly when done
+    controller.dispose();  // Explicit cleanup of video controller
     super.dispose();
   }
 
@@ -63,7 +70,7 @@ class _IntroScreenState extends State<IntroScreen> {
     return Scaffold(
       body: showText
           ? isLoading
-          ? const Center(child: CircularProgressIndicator()) // Loading indicator while markdown loads
+          ? const Center(child: CircularProgressIndicator())
           : SafeArea(
         child: Column(
           children: [
@@ -77,12 +84,16 @@ class _IntroScreenState extends State<IntroScreen> {
               padding: const EdgeInsets.all(20.0),
               child: ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    showText = false;  // Switch explicitly to video mode
-                  });
-                  initializeAndPlayVideo(); // Initialize and play the video explicitly
+                  sendReadyConfirmation();  // Explicit readiness call placeholder
+
+                  // Explicit navigation to the TilePlacementScreen
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const TilePlacementScreen(),
+                    ),
+                  );
                 },
-                child: const Text('OK'),
+                child: const Text('Ready'),
               ),
             ),
           ],
@@ -99,7 +110,7 @@ class _IntroScreenState extends State<IntroScreen> {
           ),
         ),
       )
-          : const Center(child: CircularProgressIndicator()), // Show loading indicator while video initializes
+          : const Center(child: CircularProgressIndicator()),
     );
   }
 }
