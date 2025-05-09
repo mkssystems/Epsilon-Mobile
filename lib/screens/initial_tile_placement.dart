@@ -1,42 +1,55 @@
+// lib/screens/initial_tile_placement.dart
+
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
+import 'dart:async';
 import 'package:epsilon_mobile/services/api_service.dart';
+import 'package:epsilon_mobile/services/game_menu_service.dart';
 
-class TilePlacementScreen extends StatefulWidget {
-  final String sessionId;
-  final String clientId;
-
-  const TilePlacementScreen({
-    super.key,
-    required this.sessionId,
-    required this.clientId,
-  });
+class InitialTilePlacementScreen extends StatefulWidget {
+  const InitialTilePlacementScreen({super.key});
 
   @override
-  _TilePlacementScreenState createState() => _TilePlacementScreenState();
+  _InitialTilePlacementScreenState createState() => _InitialTilePlacementScreenState();
 }
 
-class _TilePlacementScreenState extends State<TilePlacementScreen> {
+class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen> {
   late WebSocketChannel channel;
+  final GameMenuService gameMenuService = GameMenuService();
   List<dynamic> players = [];
   bool allReady = false;
   bool countdownStarted = false;
   int countdown = 5;
 
+  String? sessionId;
+  String? clientId;
+
   @override
   void initState() {
     super.initState();
+    initializeIds();
+  }
 
-    // Establish WebSocket connection using ApiService.baseUrl explicitly
+  Future<void> initializeIds() async {
+    sessionId = await gameMenuService.getSessionId();
+    clientId = await gameMenuService.getClientId();
+
+    if (sessionId != null && clientId != null) {
+      setupWebSocket();
+    } else {
+      print('Session or Client ID missing!');
+    }
+  }
+
+  void setupWebSocket() {
     final websocketUrl = Uri.parse(
-      "${ApiService.baseUrl.replaceAll('http', 'ws')}/ws/${widget.sessionId}/${widget.clientId}",
+      "${ApiService.baseUrl.replaceAll('http', 'ws')}/ws/$sessionId/$clientId",
     );
 
     channel = IOWebSocketChannel.connect(websocketUrl);
 
-    // Explicitly handle incoming WebSocket messages
     channel.stream.listen((message) {
       final decodedMessage = jsonDecode(message);
       setState(() {
@@ -49,14 +62,12 @@ class _TilePlacementScreenState extends State<TilePlacementScreen> {
       });
     });
 
-    // Explicitly notify backend that intro is completed
     channel.sink.add(jsonEncode({"type": "intro_completed"}));
   }
 
-  // Explicit countdown logic for temporary testing
   void startCountdown() {
     countdownStarted = true;
-    Future.periodic(const Duration(seconds: 1), (timer) {
+    Timer.periodic(const Duration(seconds: 1), (timer) {
       setState(() {
         countdown--;
         if (countdown == 0) {
@@ -75,7 +86,7 @@ class _TilePlacementScreenState extends State<TilePlacementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tile Placement')),
+      appBar: AppBar(title: const Text('Initial Tile Placement')),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

@@ -4,17 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:epsilon_mobile/screens/tile_placement.dart';
+import 'package:epsilon_mobile/screens/initial_tile_placement.dart';
+import 'package:epsilon_mobile/services/game_menu_service.dart';
 
 class IntroScreen extends StatefulWidget {
-  final String sessionId;
-  final String clientId;
-
-  const IntroScreen({
-    super.key,
-    required this.sessionId,
-    required this.clientId,
-  });
+  const IntroScreen({super.key});
 
   @override
   _IntroScreenState createState() => _IntroScreenState();
@@ -25,12 +19,25 @@ class _IntroScreenState extends State<IntroScreen> {
   bool showText = false;
   String markdownContent = '';
   bool isLoading = true;
+  final GameMenuService gameMenuService = GameMenuService();
+  String? sessionId;
+  String? clientId;
 
   @override
   void initState() {
     super.initState();
+    loadIds();
     loadMarkdown();
     initializeAndPlayVideo();
+  }
+
+  Future<void> loadIds() async {
+    sessionId = await gameMenuService.getSessionId();
+    clientId = await gameMenuService.getClientId();
+    if (sessionId == null || clientId == null) {
+      // Handle missing IDs explicitly here
+      print('Session or Client ID missing!');
+    }
   }
 
   Future<void> loadMarkdown() async {
@@ -83,14 +90,16 @@ class _IntroScreenState extends State<IntroScreen> {
               padding: const EdgeInsets.all(20.0),
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (context) => TilePlacementScreen(
-                        sessionId: widget.sessionId,
-                        clientId: widget.clientId,
+                  if (sessionId != null && clientId != null) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) =>
+                        const InitialTilePlacementScreen(),
                       ),
-                    ),
-                  );
+                    );
+                  } else {
+                    print('Cannot proceed, IDs missing');
+                  }
                 },
                 child: const Text('Ready'),
               ),

@@ -153,7 +153,7 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   @override
   void initState() {
     super.initState();
-    apiService = ApiService(baseUrl: backendUrl);
+    apiService = ApiService(instanceBaseUrl: backendUrl);
     widget.webSocketService.addListener(handleWebSocketMessage);
 
     fetchCurrentStatus();
