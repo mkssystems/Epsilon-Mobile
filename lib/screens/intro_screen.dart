@@ -4,10 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:epsilon_mobile/screens/tile_placement.dart'; // Explicit import of new screen
+import 'package:epsilon_mobile/screens/tile_placement.dart';
 
 class IntroScreen extends StatefulWidget {
-  const IntroScreen({super.key});
+  final String sessionId;
+  final String clientId;
+
+  const IntroScreen({
+    super.key,
+    required this.sessionId,
+    required this.clientId,
+  });
 
   @override
   _IntroScreenState createState() => _IntroScreenState();
@@ -15,27 +22,26 @@ class IntroScreen extends StatefulWidget {
 
 class _IntroScreenState extends State<IntroScreen> {
   late VideoPlayerController controller;
-  bool showText = false;         // Start explicitly with video
+  bool showText = false;
   String markdownContent = '';
   bool isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    loadMarkdown();                  // Load markdown explicitly on init
-    initializeAndPlayVideo();        // Initialize and play video immediately
+    loadMarkdown();
+    initializeAndPlayVideo();
   }
 
-  // Explicitly load markdown content
   Future<void> loadMarkdown() async {
-    final String content = await rootBundle.loadString('assets/backstories/epsilon267_intro.md');
+    final String content =
+    await rootBundle.loadString('assets/backstories/epsilon267_intro.md');
     setState(() {
       markdownContent = content;
       isLoading = false;
     });
   }
 
-  // Explicitly initialize video playback immediately
   void initializeAndPlayVideo() {
     controller = VideoPlayerController.asset('assets/videos/epsilon_intro.mp4')
       ..initialize().then((_) {
@@ -43,25 +49,18 @@ class _IntroScreenState extends State<IntroScreen> {
         controller.play();
       });
 
-    // Explicitly handle video completion to show text
     controller.addListener(() {
       if (controller.value.position >= controller.value.duration) {
         setState(() {
-          showText = true; // Switch explicitly to showing markdown text
+          showText = true;
         });
       }
     });
   }
 
-  // Explicit placeholder for sending readiness confirmation (backend integration in next steps)
-  void sendReadyConfirmation() {
-    // TODO: Implement explicit backend API/WebSocket call to send readiness confirmation
-    print("Player confirmed ready. Placeholder for backend call.");
-  }
-
   @override
   void dispose() {
-    controller.dispose();  // Explicit cleanup of video controller
+    controller.dispose();
     super.dispose();
   }
 
@@ -84,12 +83,12 @@ class _IntroScreenState extends State<IntroScreen> {
               padding: const EdgeInsets.all(20.0),
               child: ElevatedButton(
                 onPressed: () {
-                  sendReadyConfirmation();  // Explicit readiness call placeholder
-
-                  // Explicit navigation to the TilePlacementScreen
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
-                      builder: (context) => const TilePlacementScreen(),
+                      builder: (context) => TilePlacementScreen(
+                        sessionId: widget.sessionId,
+                        clientId: widget.clientId,
+                      ),
                     ),
                   );
                 },
