@@ -5,7 +5,6 @@ import 'package:video_player/video_player.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:epsilon_mobile/screens/initial_tile_placement.dart';
-import 'package:epsilon_mobile/services/game_menu_service.dart';
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
@@ -19,30 +18,16 @@ class _IntroScreenState extends State<IntroScreen> {
   bool showText = false;
   String markdownContent = '';
   bool isLoading = true;
-  final GameMenuService gameMenuService = GameMenuService();
-  String? sessionId;
-  String? clientId;
 
   @override
   void initState() {
     super.initState();
-    loadIds();
     loadMarkdown();
     initializeAndPlayVideo();
   }
 
-  Future<void> loadIds() async {
-    sessionId = await gameMenuService.getSessionId();
-    clientId = await gameMenuService.getClientId();
-    if (sessionId == null || clientId == null) {
-      // Handle missing IDs explicitly here
-      print('Session or Client ID missing!');
-    }
-  }
-
   Future<void> loadMarkdown() async {
-    final String content =
-    await rootBundle.loadString('assets/backstories/epsilon267_intro.md');
+    final String content = await rootBundle.loadString('assets/backstories/epsilon267_intro.md');
     setState(() {
       markdownContent = content;
       isLoading = false;
@@ -75,7 +60,7 @@ class _IntroScreenState extends State<IntroScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: showText
-          ? isLoading
+          ? (isLoading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
         child: Column(
@@ -90,23 +75,18 @@ class _IntroScreenState extends State<IntroScreen> {
               padding: const EdgeInsets.all(20.0),
               child: ElevatedButton(
                 onPressed: () {
-                  if (sessionId != null && clientId != null) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) =>
-                        const InitialTilePlacementScreen(),
-                      ),
-                    );
-                  } else {
-                    print('Cannot proceed, IDs missing');
-                  }
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (context) => const InitialTilePlacementScreen(),
+                    ),
+                  );
                 },
                 child: const Text('Ready'),
               ),
             ),
           ],
         ),
-      )
+      ))
           : controller.value.isInitialized
           ? SizedBox.expand(
         child: FittedBox(

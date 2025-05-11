@@ -1,5 +1,5 @@
-//lib/screens/game_menu_screen.dart
 
+// lib/screens/game_menu_screen.dart
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../services/game_menu_service.dart';
@@ -18,10 +18,12 @@ class GameMenuScreen extends StatefulWidget {
 
 class _GameMenuScreenState extends State<GameMenuScreen> {
   final GameMenuService service = GameMenuService();
-  List<dynamic> sessions = [];
   String? currentSessionId;
   String clientId = '';
   bool loading = true;
+
+  List<dynamic> createdSessions = [];
+  List<dynamic> joinedSessions = [];
 
   @override
   void initState() {
@@ -33,26 +35,21 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
     });
   }
 
-  List<dynamic> createdSessions = [];
-  List<dynamic> joinedSessions = [];
-
   Future<void> refreshSessions() async {
     setState(() => loading = true);
 
     createdSessions = await service.fetchGameSessions(clientId);
     joinedSessions = await service.fetchJoinedGameSessions(clientId);
-
     currentSessionId = await service.checkClientSessionState(clientId);
 
     setState(() => loading = false);
   }
 
-
   void showCreateSession() {
     showDialog(
       context: context,
       builder: (_) => CreateGameSessionDialog(
-        userId: clientId,  // <-- correct this parameter
+        userId: clientId,
         onCreate: (size, scenario, maxPlayers) async {
           await service.createGameSession(
             size: size,
@@ -66,7 +63,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       ),
     );
   }
-
 
   void showSessionDetails(dynamic session) async {
     await refreshSessions();
@@ -85,6 +81,8 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                     ElevatedButton(
                       onPressed: () async {
                         await service.leaveGameSession(clientId);
+                        await service.clearSessionAndClientId();
+                        print('Cleared sessionId explicitly');
                         await refreshSessions();
                         setDialogState(() {});
                       },
@@ -96,11 +94,9 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => GameSessionManager(sessionId: session['id'], clientId: clientId), //✅ corrected
+                            builder: (_) => GameSessionManager(sessionId: session['id'], clientId: clientId),
                           ),
                         );
-
-
                       },
                       child: const Text('Enter Game'),
                     ),
@@ -110,9 +106,12 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 return ElevatedButton(
                   onPressed: () async {
                     await service.joinGameSession(clientId, session['id']);
+                    await service.storeSessionAndClientId(session['id'], clientId);
+                    print('Stored sessionId: ${session['id']} and clientId: $clientId explicitly');
                     await refreshSessions();
                     setDialogState(() {});
                   },
+
                   child: const Text('Join'),
                 );
               }
@@ -157,39 +156,39 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
             if (confirmJoin) {
               try {
                 await service.joinGameSession(clientId, sessionId);
+                await service.storeSessionAndClientId(sessionId, clientId);
+                print('Stored sessionId: \$sessionId and clientId: \$clientId explicitly via QR');
                 await refreshSessions();
 
                 if (!mounted) return;
-
-                Navigator.pop(context); // pop QR scanner first
+                Navigator.pop(context);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => GameSessionManager(sessionId: sessionId, clientId: clientId), //✅ corrected
+                    builder: (_) => GameSessionManager(sessionId: sessionId, clientId: clientId),
                   ),
                 );
 
-
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Successfully joined session $sessionId')),
+                  SnackBar(content: Text('Successfully joined session \$sessionId')),
                 );
               } catch (e) {
                 if (!mounted) return;
-                Navigator.pop(context); // pop QR scanner
+                Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to join session: $e')),
+                  SnackBar(content: Text('Failed to join session: \$e')),
                 );
               }
             } else {
-              if (mounted) Navigator.pop(context); // pop QR scanner
+              if (mounted) Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Join cancelled')),
               );
             }
           },
           onCancel: () {
-            if (mounted) Navigator.pop(context); // pop QR scanner
+            if (mounted) Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('QR scan cancelled')),
             );
@@ -198,8 +197,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       ),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -218,47 +215,33 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'Sessions I Created',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              child: Text('Sessions I Created', style: Theme.of(context).textTheme.titleLarge),
             ),
             GameSessionListWidget(
               sessions: createdSessions,
               currentSessionId: currentSessionId,
               onTapSession: showSessionDetails,
-              shrinkWrap: true,  // explicitly add this param clearly
-              physics: NeverScrollableScrollPhysics(),  // explicitly add this param clearly
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
             ),
             const Divider(),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: Text(
-                'Sessions I Joined',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
+              child: Text('Sessions I Joined', style: Theme.of(context).textTheme.titleLarge),
             ),
             GameSessionListWidget(
               sessions: joinedSessions,
               currentSessionId: currentSessionId,
               onTapSession: showSessionDetails,
-              shrinkWrap: true,  // explicitly add this param clearly
-              physics: NeverScrollableScrollPhysics(),  // explicitly add this param clearly
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
             ),
             const Divider(),
-            ElevatedButton(
-              onPressed: showCreateSession,
-              child: const Text('Create Game Session'),
-            ),
-            ElevatedButton(
-              onPressed: scanQrAndJoinSession,
-              child: const Text('Join via QR Code'),
-            ),
+            ElevatedButton(onPressed: showCreateSession, child: const Text('Create Game Session')),
+            ElevatedButton(onPressed: scanQrAndJoinSession, child: const Text('Join via QR Code')),
           ],
         ),
       ),
     );
   }
-
-
 }

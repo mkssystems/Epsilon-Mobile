@@ -8,18 +8,19 @@ import 'package:epsilon_mobile/services/api_service.dart';
 import 'package:epsilon_mobile/services/websocket_service.dart';
 
 
+final webSocketService = WebSocketService();  // explicitly using singleton
 
 
 class GameLobbyScreen extends StatefulWidget {
   final String sessionId;
   final String clientId;
-  final WebSocketService webSocketService; // THIS IS CRITICAL TO ADD
+
 
   const GameLobbyScreen({
     super.key,
     required this.sessionId,
     required this.clientId,
-    required this.webSocketService, // THIS PARAMETER IS REQUIRED
+
   });
 
 
@@ -154,36 +155,41 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   void initState() {
     super.initState();
     apiService = ApiService(instanceBaseUrl: backendUrl);
-    widget.webSocketService.addListener(handleWebSocketMessage);
+    webSocketService.addListener(handleWebSocketMessage); // explicitly use singleton here
 
     fetchCurrentStatus();
     fetchCharacters();
     fetchSelectedCharacters();
-
   }
 
 
+
   void handleWebSocketMessage(dynamic message) {
-    final data = jsonDecode(message);
-    if (data != null) {
+    if (message is Map<String, dynamic>) {
+      final data = message;
+
       if (data['event'] == 'character_selected' || data['event'] == 'character_released') {
         fetchSelectedCharacters();
         fetchCharacters();
       }
+
       if (data['players'] != null) {
         setState(() {
           players = List.from(data['players']);
           allReady = data['all_ready'] ?? false;
-          myReadyStatus = players
-              .firstWhere(
+          myReadyStatus = players.firstWhere(
                 (player) => player['client_id'].toString() == widget.clientId.toString(),
             orElse: () => {'ready': false},
           )['ready'];
         });
         fetchSelectedCharacters();
       }
+    } else {
+      print('[ERROR] Received non-Map WebSocket message: ${message.runtimeType}');
     }
   }
+
+
 
 
 
@@ -215,9 +221,10 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
 
   @override
   void dispose() {
-    widget.webSocketService.removeListener(handleWebSocketMessage);
-    super.dispose();  // explicitly removed channel.sink.close()
+    webSocketService.removeListener(handleWebSocketMessage);  // explicitly using singleton
+    super.dispose();
   }
+
 
 
 

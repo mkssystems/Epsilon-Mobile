@@ -1,12 +1,12 @@
 // lib/screens/initial_tile_placement.dart
-
 import 'package:flutter/material.dart';
-import 'package:web_socket_channel/io.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'dart:async';
-import 'package:epsilon_mobile/services/api_service.dart';
-import 'package:epsilon_mobile/services/game_menu_service.dart';
+import 'package:epsilon_mobile/services/websocket_service.dart';
+import 'package:epsilon_mobile/services/api_service.dart'; // explicitly added
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+
 
 class InitialTilePlacementScreen extends StatefulWidget {
   const InitialTilePlacementScreen({super.key});
@@ -16,42 +16,82 @@ class InitialTilePlacementScreen extends StatefulWidget {
 }
 
 class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen> {
-  late WebSocketChannel channel;
-  final GameMenuService gameMenuService = GameMenuService();
+  final webSocketService = WebSocketService();
+  final apiService = ApiService(); // Explicitly use ApiService
+
   List<dynamic> players = [];
   bool allReady = false;
   bool countdownStarted = false;
   int countdown = 5;
 
-  String? sessionId;
-  String? clientId;
+  late String sessionId;
+  late String clientId;
+
+  bool loading = true;
+  String? errorMessage;
 
   @override
   void initState() {
     super.initState();
-    initializeIds();
+    loadIds();
+    webSocketService.addListener(handleWebSocketMessage);
   }
 
-  Future<void> initializeIds() async {
-    sessionId = await gameMenuService.getSessionId();
-    clientId = await gameMenuService.getClientId();
+  Future<void> loadIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    sessionId = prefs.getString('session_id') ?? '';
+    clientId = prefs.getString('client_id') ?? '';
 
-    if (sessionId != null && clientId != null) {
-      setupWebSocket();
-    } else {
-      print('Session or Client ID missing!');
+    if (sessionId.isEmpty || clientId.isEmpty) {
+      setState(() {
+        errorMessage = 'Session or Client ID missing!';
+        loading = false;
+      });
+      print('Error: Session or Client ID missing!');
+      return;
+    }
+
+    await sendIntroCompleted();
+    setState(() {
+      loading = false;
+    });
+  }
+
+  Future<void> sendIntroCompleted() async {
+    final url = Uri.parse(
+      '${apiService.instanceBaseUrl}/game/$sessionId/player-ready',
+    );
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'client_id': clientId,
+          'turn_number': 0,
+          'phase': 'initial_placement'
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('[DEBUG] Player readiness confirmed explicitly via ApiService.');
+      } else {
+        setState(() {
+          errorMessage = 'HTTP error: ${response.statusCode} - ${response.body}';
+        });
+        print('[ERROR] Failed explicitly to confirm readiness: ${response.body}');
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to send intro completed message: $e';
+      });
+      print('Error sending intro completed message: $e');
     }
   }
 
-  void setupWebSocket() {
-    final websocketUrl = Uri.parse(
-      "${ApiService.baseUrl.replaceAll('http', 'ws')}/ws/$sessionId/$clientId",
-    );
-
-    channel = IOWebSocketChannel.connect(websocketUrl);
-
-    channel.stream.listen((message) {
-      final decodedMessage = jsonDecode(message);
+  void handleWebSocketMessage(dynamic message) {
+    try {
+      final decodedMessage = message is String ? jsonDecode(message) : message;
       setState(() {
         if (decodedMessage['event'] == 'all_players_ready') {
           allReady = true;
@@ -60,26 +100,32 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
           players = decodedMessage['players'];
         }
       });
-    });
-
-    channel.sink.add(jsonEncode({"type": "intro_completed"}));
+      print('WebSocket message received: $decodedMessage');
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to handle WebSocket message: $e';
+      });
+      print('Error decoding WebSocket message: $e');
+    }
   }
 
   void startCountdown() {
-    countdownStarted = true;
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        countdown--;
-        if (countdown == 0) {
-          timer.cancel();
-        }
+    if (!countdownStarted) {
+      countdownStarted = true;
+      Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          countdown--;
+          if (countdown == 0) {
+            timer.cancel();
+          }
+        });
       });
-    });
+    }
   }
 
   @override
   void dispose() {
-    channel.sink.close();
+    webSocketService.removeListener(handleWebSocketMessage);
     super.dispose();
   }
 
@@ -87,10 +133,22 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Initial Tile Placement')),
-      body: Column(
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : errorMessage != null
+          ? Center(
+        child: Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 18)),
+      )
+          : Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (!allReady)
+          if (!allReady && players.isEmpty)
+            const Expanded(
+              child: Center(
+                child: Text('Waiting for players...', style: TextStyle(fontSize: 20)),
+              ),
+            ),
+          if (!allReady && players.isNotEmpty)
             Expanded(
               child: ListView.builder(
                 itemCount: players.length,
