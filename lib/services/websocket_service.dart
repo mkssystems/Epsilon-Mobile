@@ -27,8 +27,19 @@ class WebSocketService {
       return;
     }
 
-    final uri = Uri.parse('wss://epsilon-poc-2.onrender.com/ws/$sessionId/$clientId');
+    final uri = Uri(
+      scheme: 'wss', // Explicitly using correct websocket scheme
+      host: 'epsilon-poc-2.onrender.com',
+      path: '/ws/$sessionId/$clientId',
+    );
+
+    // Explicitly added logging:
+    print("[DEBUG] sessionId explicitly passed: $sessionId");
+    print("[DEBUG] clientId explicitly passed: $clientId");
+    print("[DEBUG] WebSocket URI explicitly generated: $uri");
+
     _channel = IOWebSocketChannel.connect(uri);
+
 
     _channel.stream.listen(
           (message) {

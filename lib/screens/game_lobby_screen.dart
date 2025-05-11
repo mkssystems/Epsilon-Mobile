@@ -155,11 +155,18 @@ class _GameLobbyScreenState extends State<GameLobbyScreen> {
   void initState() {
     super.initState();
     apiService = ApiService(instanceBaseUrl: backendUrl);
-    webSocketService.addListener(handleWebSocketMessage); // explicitly use singleton here
+    webSocketService.addListener(handleWebSocketMessage);
 
     fetchCurrentStatus();
     fetchCharacters();
     fetchSelectedCharacters();
+
+    // Explicitly construct and log WebSocket URL
+    final websocketUrl = 'wss://epsilon-poc-2.onrender.com/ws/${widget.sessionId}/${widget.clientId}';
+    print("[DEBUG] Explicit WebSocket connection URL: $websocketUrl");
+
+    // Corrected: Pass parameters explicitly as named arguments
+    webSocketService.connect(sessionId: widget.sessionId, clientId: widget.clientId);
   }
 
 

@@ -51,6 +51,12 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
       return;
     }
 
+    // Explicitly connect to WebSocket
+    webSocketService.connect(sessionId: sessionId, clientId: clientId);
+
+    // Request initial readiness status explicitly
+    webSocketService.sendMessage({"type": "request_readiness"});
+
     await sendIntroCompleted();
     setState(() {
       loading = false;
@@ -92,14 +98,29 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
   void handleWebSocketMessage(dynamic message) {
     try {
       final decodedMessage = message is String ? jsonDecode(message) : message;
-      setState(() {
-        if (decodedMessage['event'] == 'all_players_ready') {
+
+      if (decodedMessage['type'] == 'readiness_status') {
+        setState(() {
+          players = decodedMessage['players'];
+          allReady = decodedMessage['all_ready'];
+          if (allReady) {
+            startCountdown();
+          }
+        });
+        print('[INFO] Readiness status updated from WebSocket.');
+      } else if (decodedMessage['event'] == 'all_players_ready') {
+        setState(() {
           allReady = true;
           startCountdown();
-        } else if (decodedMessage['players'] != null) {
+        });
+        print('[INFO] All players are now ready.');
+      } else if (decodedMessage['players'] != null) {
+        setState(() {
           players = decodedMessage['players'];
-        }
-      });
+        });
+        print('[INFO] Players list updated from WebSocket.');
+      }
+
       print('WebSocket message received: $decodedMessage');
     } catch (e) {
       setState(() {
