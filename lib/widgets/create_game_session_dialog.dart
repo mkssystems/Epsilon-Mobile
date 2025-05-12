@@ -1,3 +1,4 @@
+//lib/widgets/create_game_session_dialog.dart
 import 'package:flutter/material.dart';
 
 class CreateGameSessionDialog extends StatefulWidget {

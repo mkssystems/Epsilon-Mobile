@@ -1,3 +1,4 @@
+//lib/widgets/session_qr_code_widget.dart
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 

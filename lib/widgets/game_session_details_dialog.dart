@@ -1,3 +1,4 @@
+//lib/widgets/game_session_details_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
