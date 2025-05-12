@@ -6,6 +6,7 @@ import 'dart:async';
 typedef WebSocketMessageHandler = void Function(dynamic message);
 
 class WebSocketService {
+  // Singleton instance
   static final WebSocketService _instance = WebSocketService._internal();
 
   factory WebSocketService() {
@@ -14,6 +15,7 @@ class WebSocketService {
 
   WebSocketService._internal();
 
+  // WebSocket channel instance
   late IOWebSocketChannel _channel;
   bool _isConnected = false;
 
@@ -21,26 +23,23 @@ class WebSocketService {
 
   Timer? _heartbeatTimer;
 
+  // Explicitly connects to the WebSocket with provided sessionId and clientId
   void connect({required String sessionId, required String clientId}) {
     if (_isConnected) {
       print("[INFO] WebSocket already explicitly connected.");
       return;
     }
 
-    final uri = Uri(
-      scheme: 'wss', // Explicitly using correct websocket scheme
-      host: 'epsilon-poc-2.onrender.com',
-      path: '/ws/$sessionId/$clientId',
-    );
+    // Correctly constructing WebSocket URL explicitly
+    final url = 'wss://epsilon-poc-2.onrender.com/ws/$sessionId/$clientId';
 
-    // Explicitly added logging:
-    print("[DEBUG] sessionId explicitly passed: $sessionId");
-    print("[DEBUG] clientId explicitly passed: $clientId");
-    print("[DEBUG] WebSocket URI explicitly generated: $uri");
+    // Explicit logging of constructed WebSocket URL for debugging
+    print("[DEBUG] WebSocket URL explicitly generated: $url");
 
-    _channel = IOWebSocketChannel.connect(uri);
+    // Connecting explicitly using the URL string directly
+    _channel = IOWebSocketChannel.connect(url);
 
-
+    // Listening for incoming WebSocket messages explicitly
     _channel.stream.listen(
           (message) {
         dynamic decodedMessage;
@@ -59,6 +58,7 @@ class WebSocketService {
           return;
         }
 
+        // Explicitly notify all registered listeners
         for (var listener in _listeners) {
           listener(decodedMessage);
         }
@@ -76,11 +76,14 @@ class WebSocketService {
     );
 
     _isConnected = true;
+
+    // Explicit heartbeat to maintain WebSocket connection
     _heartbeatTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       sendMessage({"type": "ping"});
     });
   }
 
+  // Explicitly send message through WebSocket
   void sendMessage(dynamic message) {
     if (_isConnected) {
       try {
@@ -94,6 +97,7 @@ class WebSocketService {
     }
   }
 
+  // Explicitly disconnect WebSocket
   void disconnect() {
     if (_isConnected) {
       _channel.sink.close();
@@ -105,12 +109,14 @@ class WebSocketService {
 
   bool get isConnected => _isConnected;
 
+  // Explicitly add message handler
   void addListener(WebSocketMessageHandler listener) {
     if (!_listeners.contains(listener)) {
       _listeners.add(listener);
     }
   }
 
+  // Explicitly remove message handler
   void removeListener(WebSocketMessageHandler listener) {
     _listeners.remove(listener);
   }

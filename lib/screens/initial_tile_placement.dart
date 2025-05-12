@@ -51,8 +51,6 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
       return;
     }
 
-    // Explicitly connect to WebSocket
-    webSocketService.connect(sessionId: sessionId, clientId: clientId);
 
     // Request initial readiness status explicitly
     webSocketService.sendMessage({"type": "request_readiness"});
