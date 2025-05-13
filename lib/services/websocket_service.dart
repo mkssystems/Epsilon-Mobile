@@ -1,123 +1,113 @@
 // lib/services/websocket_service.dart
-import 'package:web_socket_channel/io.dart';
-import 'dart:convert';
-import 'dart:async';
 
+import 'dart:async';
+import 'dart:convert';
+import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/status.dart' as status;
+
+// Type definition for a handler to process WebSocket messages
 typedef WebSocketMessageHandler = void Function(dynamic message);
 
 class WebSocketService {
-  // Singleton instance
   static final WebSocketService _instance = WebSocketService._internal();
-
-  factory WebSocketService() {
-    return _instance;
-  }
-
+  factory WebSocketService() => _instance;
   WebSocketService._internal();
 
-  // WebSocket channel instance
-  late IOWebSocketChannel _channel;
+  IOWebSocketChannel? _channel;
   bool _isConnected = false;
-
   final List<WebSocketMessageHandler> _listeners = [];
-
   Timer? _heartbeatTimer;
 
-  // Explicitly connects to the WebSocket with provided sessionId and clientId
   void connect({required String sessionId, required String clientId}) {
     if (_isConnected) {
-      print("[INFO] WebSocket already explicitly connected.");
+      print("[INFO] WebSocket already connected.");
       return;
     }
 
-    // Correctly constructing WebSocket URL explicitly
-    final url = 'wss://epsilon-poc-2.onrender.com/ws/$sessionId/$clientId';
-
-    // Explicit logging of constructed WebSocket URL for debugging
-    print("[DEBUG] WebSocket URL explicitly generated: $url");
-
-    // Connecting explicitly using the URL string directly
-    _channel = IOWebSocketChannel.connect(url);
-
-    // Listening for incoming WebSocket messages explicitly
-    _channel.stream.listen(
-          (message) {
-        dynamic decodedMessage;
-
-        if (message is String) {
-          try {
-            decodedMessage = jsonDecode(message);
-          } catch (e) {
-            print("[ERROR] Failed to decode incoming WebSocket message: $e");
-            return;
-          }
-        } else if (message is Map<String, dynamic>) {
-          decodedMessage = message;
-        } else {
-          print("[ERROR] Unknown message type received: ${message.runtimeType}");
-          return;
-        }
-
-        // Explicitly notify all registered listeners
-        for (var listener in _listeners) {
-          listener(decodedMessage);
-        }
-      },
-      onDone: () {
-        _isConnected = false;
-        _heartbeatTimer?.cancel();
-        print("[INFO] WebSocket explicitly closed by server.");
-      },
-      onError: (error) {
-        _isConnected = false;
-        _heartbeatTimer?.cancel();
-        print("[ERROR] WebSocket explicitly error occurred: $error");
-      },
+    final websocketUri = Uri.parse(
+      'wss://epsilon-poc-2.onrender.com/ws/$sessionId/$clientId',
     );
 
-    _isConnected = true;
+    print("[DEBUG] Attempting WebSocket connection to: $websocketUri");
 
-    // Explicit heartbeat to maintain WebSocket connection
-    _heartbeatTimer = Timer.periodic(Duration(seconds: 30), (timer) {
-      sendMessage({"type": "ping"});
-    });
-  }
+    try {
+      _channel = IOWebSocketChannel.connect(websocketUri);
+      print("[INFO] WebSocket connection initiated.");
 
-  // Explicitly send message through WebSocket
-  void sendMessage(dynamic message) {
-    if (_isConnected) {
-      try {
-        final encodedMessage = jsonEncode(message);
-        _channel.sink.add(encodedMessage);
-      } catch (e) {
-        print("[ERROR] Failed to encode outgoing WebSocket message: $e");
-      }
-    } else {
-      print("[WARN] Attempted explicitly to send message but WebSocket is disconnected.");
+      _channel?.stream.listen(
+            (message) {
+          print("[DEBUG] Raw message received: $message");
+          dynamic decodedMessage;
+          try {
+            decodedMessage = jsonDecode(message);
+            print("[DEBUG] Decoded message: $decodedMessage");
+          } catch (e) {
+            print("[ERROR] Failed to decode WebSocket message: $e");
+            return;
+          }
+
+          for (var listener in _listeners) {
+            listener(decodedMessage);
+          }
+        },
+        onDone: () {
+          _isConnected = false;
+          _heartbeatTimer?.cancel();
+          print("[INFO] WebSocket connection closed by server.");
+        },
+        onError: (error) {
+          _isConnected = false;
+          _heartbeatTimer?.cancel();
+          print("[ERROR] WebSocket error occurred: $error");
+        },
+      );
+
+      _isConnected = true;
+
+      _heartbeatTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+        sendMessage({"type": "ping"});
+        print("[DEBUG] Sent heartbeat (ping).");
+      });
+    } catch (e) {
+      _isConnected = false;
+      print("[ERROR] Exception while establishing WebSocket connection: $e");
     }
   }
 
-  // Explicitly disconnect WebSocket
+  void sendMessage(dynamic message) {
+    if (_isConnected && _channel != null) {
+      try {
+        final encodedMessage = jsonEncode(message);
+        print("[DEBUG] Sending message: $encodedMessage");
+        _channel!.sink.add(encodedMessage);
+      } catch (e) {
+        print("[ERROR] Error sending message: $e");
+      }
+    } else {
+      print("[WARN] Attempted to send message while WebSocket is disconnected.");
+    }
+  }
+
   void disconnect() {
-    if (_isConnected) {
-      _channel.sink.close();
+    if (_isConnected && _channel != null) {
+      _channel!.sink.close(status.normalClosure);
       _isConnected = false;
       _heartbeatTimer?.cancel();
-      print("[INFO] WebSocket explicitly disconnected by client.");
+      print("[INFO] WebSocket disconnected explicitly by client.");
     }
   }
 
   bool get isConnected => _isConnected;
 
-  // Explicitly add message handler
   void addListener(WebSocketMessageHandler listener) {
     if (!_listeners.contains(listener)) {
       _listeners.add(listener);
+      print("[INFO] Listener added. Total listeners: ${_listeners.length}");
     }
   }
 
-  // Explicitly remove message handler
   void removeListener(WebSocketMessageHandler listener) {
     _listeners.remove(listener);
+    print("[INFO] Listener removed. Total listeners: ${_listeners.length}");
   }
 }

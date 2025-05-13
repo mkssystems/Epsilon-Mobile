@@ -3,10 +3,9 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'package:epsilon_mobile/services/websocket_service.dart';
-import 'package:epsilon_mobile/services/api_service.dart'; // explicitly added
+import 'package:epsilon_mobile/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-
 
 class InitialTilePlacementScreen extends StatefulWidget {
   const InitialTilePlacementScreen({super.key});
@@ -17,7 +16,7 @@ class InitialTilePlacementScreen extends StatefulWidget {
 
 class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen> {
   final webSocketService = WebSocketService();
-  final apiService = ApiService(); // Explicitly use ApiService
+  final apiService = ApiService();
 
   List<dynamic> players = [];
   bool allReady = false;
@@ -51,7 +50,6 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
       return;
     }
 
-
     // Request initial readiness status explicitly
     webSocketService.sendMessage({"type": "request_readiness"});
 
@@ -62,9 +60,7 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
   }
 
   Future<void> sendIntroCompleted() async {
-    final url = Uri.parse(
-      '${apiService.instanceBaseUrl}/game/$sessionId/player-ready',
-    );
+    final url = Uri.parse('${apiService.instanceBaseUrl}/game/$sessionId/player-ready');
 
     try {
       final response = await http.post(
@@ -106,13 +102,17 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
           }
         });
         print('[INFO] Readiness status updated from WebSocket.');
-      } else if (decodedMessage['event'] == 'all_players_ready') {
+      }
+      // Explicitly handle the event when all players become ready
+      else if (decodedMessage['event'] == 'all_players_ready') {
         setState(() {
           allReady = true;
           startCountdown();
         });
         print('[INFO] All players are now ready.');
-      } else if (decodedMessage['players'] != null) {
+      }
+      // Explicitly handle general players list updates
+      else if (decodedMessage['players'] != null) {
         setState(() {
           players = decodedMessage['players'];
         });
@@ -156,47 +156,57 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
           ? Center(
-        child: Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 18)),
+        child: Text(
+          errorMessage!,
+          style: const TextStyle(color: Colors.red, fontSize: 18),
+        ),
       )
           : Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          if (!allReady && players.isEmpty)
-            const Expanded(
-              child: Center(
-                child: Text('Waiting for players...', style: TextStyle(fontSize: 20)),
-              ),
-            ),
-          if (!allReady && players.isNotEmpty)
-            Expanded(
-              child: ListView.builder(
-                itemCount: players.length,
-                itemBuilder: (context, index) {
-                  final player = players[index];
-                  return ListTile(
-                    title: Text(player['client_id']),
-                    trailing: Icon(
-                      player['ready'] ? Icons.check_circle : Icons.hourglass_empty,
-                      color: player['ready'] ? Colors.green : Colors.orange,
-                    ),
-                  );
-                },
-              ),
-            ),
+          // Display countdown timer clearly when all players are ready
           if (allReady && countdownStarted && countdown > 0)
-            Center(
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Text(
                 'Place your first tile in $countdown seconds...',
-                style: const TextStyle(fontSize: 24),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ),
+
+          // Display prompt when countdown finishes
           if (countdown == 0)
-            const Center(
-              child: Text(
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: const Text(
                 'Lay the first tile on the table!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ),
+
+          // Always display connected players
+          Expanded(
+            child: players.isEmpty
+                ? const Center(
+              child: Text(
+                'Waiting for players...',
+                style: TextStyle(fontSize: 20),
+              ),
+            )
+                : ListView.builder(
+              itemCount: players.length,
+              itemBuilder: (context, index) {
+                final player = players[index];
+                return ListTile(
+                  title: Text(player['client_id']),
+                  trailing: Icon(
+                    player['ready'] ? Icons.check_circle : Icons.hourglass_empty,
+                    color: player['ready'] ? Colors.green : Colors.orange,
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );

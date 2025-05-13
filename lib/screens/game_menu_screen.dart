@@ -157,7 +157,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
               try {
                 await service.joinGameSession(clientId, sessionId);
                 await service.storeSessionAndClientId(sessionId, clientId);
-                print('Stored sessionId: \$sessionId and clientId: \$clientId explicitly via QR');
+                print('Stored sessionId: $sessionId and clientId: $clientId explicitly via QR');
                 await refreshSessions();
 
                 if (!mounted) return;
@@ -170,14 +170,14 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                 );
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Successfully joined session \$sessionId')),
+                  SnackBar(content: Text('Successfully joined session $sessionId')),
                 );
               } catch (e) {
                 if (!mounted) return;
                 Navigator.pop(context);
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to join session: \$e')),
+                  SnackBar(content: Text('Failed to join session: $e')),
                 );
               }
             } else {
