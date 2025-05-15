@@ -2,10 +2,12 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:async';
-import 'package:epsilon_mobile/services/websocket_service.dart';
+import 'package:epsilon_mobile/services/sync_manager.dart';
 import 'package:epsilon_mobile/services/api_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+import 'package:epsilon_mobile/widgets/tile_visualization_widget.dart';
+import 'package:epsilon_mobile/widgets/hold_to_confirm_button.dart';
 
 class InitialTilePlacementScreen extends StatefulWidget {
   const InitialTilePlacementScreen({super.key});
@@ -15,8 +17,9 @@ class InitialTilePlacementScreen extends StatefulWidget {
 }
 
 class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen> {
-  final webSocketService = WebSocketService();
   final apiService = ApiService();
+
+  late SyncManager syncManager;
 
   List<dynamic> players = [];
   bool allReady = false;
@@ -29,11 +32,42 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
   bool loading = true;
   String? errorMessage;
 
+  Map<String, dynamic>? currentTile;
+
   @override
   void initState() {
     super.initState();
+    syncManager = SyncManager();
+    syncManager.initializeSync();
+    syncManager.registerListener(updateSyncState); // Move here explicitly!
     loadIds();
-    webSocketService.addListener(handleWebSocketMessage);
+  }
+
+
+  Future<void> sendTilePlacementConfirmed() async {
+    final url = Uri.parse('${apiService.instanceBaseUrl}/game/$sessionId/player-ready');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'client_id': clientId,
+          'turn_number': 0,
+          'phase': 'initial_tile_placed'
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        setState(() {
+          errorMessage = 'HTTP error: ${response.statusCode} - ${response.body}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        errorMessage = 'Failed to confirm tile placement: $e';
+      });
+    }
   }
 
   Future<void> loadIds() async {
@@ -46,14 +80,15 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
         errorMessage = 'Session or Client ID missing!';
         loading = false;
       });
-      print('Error: Session or Client ID missing!');
       return;
     }
 
-    // Request initial readiness status explicitly
-    webSocketService.sendMessage({"type": "request_readiness"});
+    syncManager.initializeSync();
 
     await sendIntroCompleted();
+    await fetchTilesToPlace();
+
+
     setState(() {
       loading = false;
     });
@@ -73,60 +108,66 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
         }),
       );
 
-      if (response.statusCode == 200) {
-        print('[DEBUG] Player readiness confirmed explicitly via ApiService.');
-      } else {
+      if (response.statusCode != 200) {
         setState(() {
           errorMessage = 'HTTP error: ${response.statusCode} - ${response.body}';
         });
-        print('[ERROR] Failed explicitly to confirm readiness: ${response.body}');
       }
     } catch (e) {
       setState(() {
         errorMessage = 'Failed to send intro completed message: $e';
       });
-      print('Error sending intro completed message: $e');
     }
   }
 
-  void handleWebSocketMessage(dynamic message) {
+  Future<void> fetchTilesToPlace() async {
+    final url = Uri.parse('${apiService.instanceBaseUrl}/game-state/$sessionId/tiles-to-place');
+
     try {
-      final decodedMessage = message is String ? jsonDecode(message) : message;
+      final response = await http.get(url);
 
-      if (decodedMessage['type'] == 'readiness_status') {
-        setState(() {
-          players = decodedMessage['players'];
-          allReady = decodedMessage['all_ready'];
-          if (allReady) {
-            startCountdown();
-          }
-        });
-        print('[INFO] Readiness status updated from WebSocket.');
-      }
-      // Explicitly handle the event when all players become ready
-      else if (decodedMessage['event'] == 'all_players_ready') {
-        setState(() {
-          allReady = true;
-          startCountdown();
-        });
-        print('[INFO] All players are now ready.');
-      }
-      // Explicitly handle general players list updates
-      else if (decodedMessage['players'] != null) {
-        setState(() {
-          players = decodedMessage['players'];
-        });
-        print('[INFO] Players list updated from WebSocket.');
-      }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final tilesToPlace = data['tiles_to_place'];
 
-      print('WebSocket message received: $decodedMessage');
+        if (tilesToPlace.isNotEmpty) {
+          setState(() {
+            currentTile = tilesToPlace.first;
+          });
+        }
+      } else {
+        setState(() {
+          errorMessage = 'Failed to fetch tiles: ${response.body}';
+        });
+      }
     } catch (e) {
       setState(() {
-        errorMessage = 'Failed to handle WebSocket message: $e';
+        errorMessage = 'Failed to fetch tiles: $e';
       });
-      print('Error decoding WebSocket message: $e');
     }
   }
+
+  void updateSyncState() {
+    setState(() {
+      players = syncManager.playerStatuses.entries.map((entry) => {
+        'client_id': entry.key,
+        'ready': entry.value,
+      }).toList();
+
+      allReady = syncManager.isEveryoneReady();
+
+      print("[DEBUG SCREEN] allReady status: $allReady");
+      print("[DEBUG SCREEN] players: $players");
+
+      // Explicitly handle countdown start immediately upon all players ready
+      if (allReady && !countdownStarted) {
+        print("[DEBUG SCREEN] Starting countdown explicitly");
+        startCountdown();
+      }
+    });
+  }
+
+
 
   void startCountdown() {
     if (!countdownStarted) {
@@ -144,7 +185,8 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
 
   @override
   void dispose() {
-    webSocketService.removeListener(handleWebSocketMessage);
+    syncManager.unregisterListener(updateSyncState);
+    syncManager.dispose();
     super.dispose();
   }
 
@@ -155,16 +197,10 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : errorMessage != null
-          ? Center(
-        child: Text(
-          errorMessage!,
-          style: const TextStyle(color: Colors.red, fontSize: 18),
-        ),
-      )
+          ? Center(child: Text(errorMessage!, style: const TextStyle(color: Colors.red, fontSize: 18)))
           : Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          // Display countdown timer clearly when all players are ready
           if (allReady && countdownStarted && countdown > 0)
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -173,26 +209,31 @@ class _InitialTilePlacementScreenState extends State<InitialTilePlacementScreen>
                 style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
             ),
-
-          // Display prompt when countdown finishes
-          if (countdown == 0)
+          if (currentTile != null)
+            Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'Please place tile at (${currentTile!["x"]}, ${currentTile!["y"]}), type: ${currentTile!["type"]}',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                TileVisualizationWidget(tileCode: currentTile!['tile_code'], size: 150),
+              ],
+            ),
+          if (currentTile != null && countdown == 0)
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: const Text(
-                'Lay the first tile on the table!',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: HoldToConfirmButton(
+                onConfirmed: () async {
+                  await sendTilePlacementConfirmed();
+                },
               ),
             ),
-
-          // Always display connected players
           Expanded(
             child: players.isEmpty
-                ? const Center(
-              child: Text(
-                'Waiting for players...',
-                style: TextStyle(fontSize: 20),
-              ),
-            )
+                ? const Center(child: Text('Waiting for players...', style: TextStyle(fontSize: 20)))
                 : ListView.builder(
               itemCount: players.length,
               itemBuilder: (context, index) {

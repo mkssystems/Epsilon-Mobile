@@ -8,76 +8,81 @@ class SyncManager {
   // Instance of WebSocket service for communication
   final WebSocketService _webSocketService = WebSocketService();
 
-  // Internal tracking of player readiness statuses by node
-  Map<String, Map<String, bool>> playerStatuses = {};
+  // Internal tracking of player readiness statuses
+  Map<String, bool> playerStatuses = {};
 
-  // Indicates if all players are ready for a given node
-  Map<String, bool> allReady = {};
+  // Indicates if all players are ready
+  bool allReady = false;
 
   // Registered listeners to react to state changes
   final List<SyncCallback> _listeners = [];
 
+  bool _initialized = false;
+
   SyncManager() {
-    // Listen to incoming WebSocket messages
+    // Listen to incoming WebSocket messages explicitly
     _webSocketService.addListener(_handleWebSocketMessage);
   }
 
-  /// Initialize synchronization for a specific game node
-  void initializeSyncNode(String nodeName) {
-    playerStatuses[nodeName] = {};
-    allReady[nodeName] = false;
+  /// Initialize synchronization explicitly
+  void initializeSync() {
+    if (_initialized) return; // Explicitly avoid double initialization
+    _initialized = true;
 
-    // Request current status explicitly from backend
+    playerStatuses.clear();
+    allReady = false;
+
+    // Explicitly request current readiness status from backend
     _webSocketService.sendMessage({
       "type": "request_readiness",
-      "node": nodeName,
     });
   }
 
-  /// Update the player's readiness status clearly to backend
-  void updateMyReadiness(String nodeName, String clientId, bool isReady) {
-    _webSocketService.sendMessage({
-      "type": "player_readiness_update",
-      "node": nodeName,
-      "client_id": clientId,
-      "is_ready": isReady
-    });
+  /// Checks explicitly if everyone is ready
+  bool isEveryoneReady() {
+    return allReady;
   }
 
-  /// Checks if everyone is ready for a given node
-  bool isEveryoneReady(String nodeName) {
-    return allReady[nodeName] ?? false;
-  }
-
-  /// Register UI listeners to be notified of status changes
+  /// Register UI listeners to be explicitly notified of status changes
   void registerListener(SyncCallback callback) {
     _listeners.add(callback);
   }
 
-  /// Remove listeners when not needed to prevent memory leaks
+  /// Remove listeners explicitly to prevent memory leaks
   void unregisterListener(SyncCallback callback) {
     _listeners.remove(callback);
   }
 
-  /// Internal handler for incoming WebSocket messages
+  /// Internal handler for incoming WebSocket messages explicitly
   void _handleWebSocketMessage(dynamic message) {
+    print('[FRONTEND DEBUG] Raw WebSocket message: $message');
     try {
       final decodedMessage = message is String ? jsonDecode(message) : message;
+      print('[FRONTEND DEBUG] Decoded message: $decodedMessage');
 
       if (decodedMessage['type'] == 'readiness_status') {
-        final node = decodedMessage['node'];
-
-        // Update player statuses clearly
         final playersList = decodedMessage['players'] as List<dynamic>;
-        playerStatuses[node] = {
+        playerStatuses = {
           for (var player in playersList)
-            player['client_id']: player['is_ready'] as bool
+            player['client_id']: player['ready'] as bool
         };
 
-        // Update 'allReady' flag clearly
-        allReady[node] = decodedMessage['all_ready'] as bool;
+        print('[FRONTEND DEBUG] playerStatuses updated: $playerStatuses');
 
-        // Notify listeners explicitly
+        allReady = decodedMessage['all_ready'] as bool;
+        _notifyListeners();
+      }
+      // Explicit handling for backend events
+      else if (decodedMessage['event'] == 'all_players_ready') {
+        allReady = true;
+
+        // Explicitly set all players to ready
+        playerStatuses.updateAll((key, value) => true);
+
+        print("[FRONTEND DEBUG] Explicitly marked all players as ready: $playerStatuses");
+        _notifyListeners();
+      }
+      else if (decodedMessage['event'] == 'phase_transition') {
         _notifyListeners();
       }
     } catch (e) {
@@ -85,8 +90,10 @@ class SyncManager {
     }
   }
 
+
   /// Explicitly notify all registered listeners
   void _notifyListeners() {
+    print("[SyncManager DEBUG] Explicitly notifying ${_listeners.length} listeners");
     for (var listener in _listeners) {
       listener();
     }
@@ -96,5 +103,6 @@ class SyncManager {
   void dispose() {
     _webSocketService.removeListener(_handleWebSocketMessage);
     _listeners.clear();
+    _initialized = false;
   }
 }
