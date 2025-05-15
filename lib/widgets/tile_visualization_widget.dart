@@ -63,18 +63,18 @@ class TileVisualizationWidget extends StatelessWidget {
     switch (directions) {
       case 'EW': return 'tile_corridor_EW.png';
       case 'NS': return 'tile_corridor_NS.png';
-      case 'NESW': return 'tile_crossroad.png';
+      case 'ENSW': return 'tile_crossroad.png'; // explicitly sorted
       case 'E': return 'tile_dead_end_E.png';
       case 'N': return 'tile_dead_end_N.png';
       case 'S': return 'tile_dead_end_S.png';
       case 'W': return 'tile_dead_end_W.png';
-      case 'EWS': return 'tile_t_section_N.png';
+      case 'ESW': return 'tile_t_section_N.png'; // sorted explicitly
       case 'NSW': return 'tile_t_section_E.png';
-      case 'NEW': return 'tile_t_section_S.png';
-      case 'NES': return 'tile_t_section_W.png';
-      case 'NE': return 'tile_turn_NE.png';
+      case 'ENW': return 'tile_t_section_S.png';
+      case 'ENS': return 'tile_t_section_W.png';
+      case 'EN': return 'tile_turn_NE.png'; // this is explicitly correct now
       case 'NW': return 'tile_turn_NW.png';
-      case 'SE': return 'tile_turn_SE.png';
+      case 'ES': return 'tile_turn_SE.png';
       case 'SW': return 'tile_turn_SW.png';
       default: return 'tile_crossroad.png';
     }
