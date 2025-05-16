@@ -54,4 +54,18 @@ class ApiService {
       throw Exception('Failed to select character: ${response.body}');
     }
   }
+
+  /// Explicitly added method to fetch the current game session status from backend.
+  /// Static method allows easy access without instantiating ApiService.
+  static Future<Map<String, dynamic>> getGameSessionStatus(String sessionId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/game_sessions/$sessionId/status'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to load game session status: ${response.body}');
+    }
+  }
 }

@@ -8,6 +8,10 @@ import '../widgets/create_game_session_dialog.dart';
 import '../widgets/game_session_details_dialog.dart';
 import '../widgets/qr_code_scanner_widget.dart';
 import 'game_session_manager.dart';
+import '../services/api_service.dart';
+import '../widgets/game_state_router_widget.dart';
+import 'game_lobby_screen.dart';
+
 
 class GameMenuScreen extends StatefulWidget {
   const GameMenuScreen({super.key});
@@ -89,14 +93,25 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                       child: const Text('Leave'),
                     ),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
+                        final gamePhase = (await ApiService.getGameSessionStatus(session['id']))['game_phase'] as String?;
+
+                        if (!mounted) return;
                         Navigator.pop(dialogContext);
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => GameSessionManager(sessionId: session['id'], clientId: clientId),
-                          ),
-                        );
+
+                        if (gamePhase == null || gamePhase.trim().isEmpty) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
+                            ),
+                          );
+                        } else {
+                          Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => GameStateRouterWidget(sessionId: session['id']),
+                            ),
+                          );
+                        }
                       },
                       child: const Text('Enter Game'),
                     ),
@@ -111,7 +126,6 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                     await refreshSessions();
                     setDialogState(() {});
                   },
-
                   child: const Text('Join'),
                 );
               }
@@ -127,6 +141,7 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
       },
     );
   }
+
 
   void scanQrAndJoinSession() {
     Navigator.push(
