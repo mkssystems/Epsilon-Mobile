@@ -94,18 +94,29 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        final gamePhase = (await ApiService.getGameSessionStatus(session['id']))['game_phase'] as String?;
+                        final sessionStatus = await ApiService.getGameSessionStatus(session['id']);
+                        debugPrint("Backend sessionStatus response: $sessionStatus");
+
+                        final gamePhase = sessionStatus['phase']?['name'] as String?;
+                        final turnNumber = sessionStatus['turn']?['number'];
+
+                        debugPrint("Parsed gamePhase: '$gamePhase', turn: '$turnNumber'");
 
                         if (!mounted) return;
                         Navigator.pop(dialogContext);
 
-                        if (gamePhase == null || gamePhase.trim().isEmpty) {
+                        if (gamePhase == 'WAITING_FOR_PLAYERS' || turnNumber == -1) {
+                          debugPrint("Entering GameLobbyScreen due to WAITING_FOR_PLAYERS phase or turn -1");
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => GameLobbyScreen(sessionId: session['id'], clientId: clientId),
+                              builder: (_) => GameLobbyScreen(
+                                sessionId: session['id'],
+                                clientId: clientId,
+                              ),
                             ),
                           );
                         } else {
+                          debugPrint("Entering GameStateRouterWidget for phase '$gamePhase'");
                           Navigator.of(context).pushReplacement(
                             MaterialPageRoute(
                               builder: (_) => GameStateRouterWidget(sessionId: session['id']),
@@ -115,6 +126,9 @@ class _GameMenuScreenState extends State<GameMenuScreen> {
                       },
                       child: const Text('Enter Game'),
                     ),
+
+
+
                   ],
                 );
               } else if (currentSessionId == null) {

@@ -59,7 +59,7 @@ class ApiService {
   /// Static method allows easy access without instantiating ApiService.
   static Future<Map<String, dynamic>> getGameSessionStatus(String sessionId) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/game_sessions/$sessionId/status'),
+      Uri.parse('$baseUrl/game-state/$sessionId'),
     );
 
     if (response.statusCode == 200) {
@@ -68,4 +68,6 @@ class ApiService {
       throw Exception('Failed to load game session status: ${response.body}');
     }
   }
+
+
 }

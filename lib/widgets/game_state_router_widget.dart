@@ -1,11 +1,14 @@
 // lib/widgets/game_state_router_widget.dart
-
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../screens/intro_screen.dart';
 import '../screens/initial_tile_placement.dart';
 import '../screens/game_lobby_screen.dart';
 import '../services/game_menu_service.dart';
+import '../services/websocket_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+final webSocketService = WebSocketService(); // Explicit singleton
 
 class GameStateRouterWidget extends StatefulWidget {
   final String sessionId;
@@ -17,27 +20,37 @@ class GameStateRouterWidget extends StatefulWidget {
 }
 
 class _GameStateRouterWidgetState extends State<GameStateRouterWidget> {
-  late Future<Map<String, dynamic>> _gameStateFuture;
+  Future<Map<String, dynamic>>? _gameStateFuture;
   String clientId = '';
   final GameMenuService service = GameMenuService();
 
   @override
   void initState() {
     super.initState();
-    fetchGameStateAndClientId();
+    _initializeData();
   }
 
-  void fetchGameStateAndClientId() async {
-    clientId = await service.getOrCreateClientId();
-    debugPrint("Fetched clientId explicitly: $clientId");
+  Future<void> _initializeData() async {
+    final prefs = await SharedPreferences.getInstance();
+    clientId = prefs.getString('client_id') ?? await service.getOrCreateClientId();
 
+    // Explicitly initialize WebSocket if not already connected
+    if (!webSocketService.isConnected) {
+      webSocketService.connect(sessionId: widget.sessionId, clientId: clientId);
+    }
+
+    final response = await ApiService.getGameSessionStatus(widget.sessionId);
     setState(() {
-      _gameStateFuture = ApiService.getGameSessionStatus(widget.sessionId);
+      _gameStateFuture = Future.value(response);
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_gameStateFuture == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       body: FutureBuilder<Map<String, dynamic>>(
         future: _gameStateFuture,
@@ -48,12 +61,10 @@ class _GameStateRouterWidgetState extends State<GameStateRouterWidget> {
             return Center(child: Text('Error fetching game state: ${snapshot.error}'));
           }
 
-          final gamePhase = snapshot.data?['game_phase'] as String?;
-          debugPrint("Fetched gamePhase explicitly: '$gamePhase'");
+          final gamePhase = snapshot.data?['phase']?['name'] as String?;
 
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (gamePhase == null || gamePhase.trim().isEmpty) {
-              debugPrint("Game phase is null or empty, routing explicitly to GameLobbyScreen");
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => GameLobbyScreen(sessionId: widget.sessionId, clientId: clientId)),
@@ -61,7 +72,6 @@ class _GameStateRouterWidgetState extends State<GameStateRouterWidget> {
             } else {
               switch (gamePhase) {
                 case 'TURN_0':
-                  debugPrint("Routing explicitly to IntroScreen (TURN_0 phase)");
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => const IntroScreen()),
@@ -69,7 +79,6 @@ class _GameStateRouterWidgetState extends State<GameStateRouterWidget> {
                   break;
 
                 case 'INITIAL_PLACEMENT':
-                  debugPrint("Routing explicitly to InitialTilePlacementScreen (INITIAL_PLACEMENT phase)");
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => const InitialTilePlacementScreen()),
@@ -77,7 +86,6 @@ class _GameStateRouterWidgetState extends State<GameStateRouterWidget> {
                   break;
 
                 default:
-                  debugPrint("Encountered unexpected game phase explicitly: '$gamePhase'");
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
